@@ -1,0 +1,23 @@
+services:
+  db:
+    image: postgres:18
+    container_name: postgres-dev
+    volumes:
+      - postgres-dev:/var/lib/postgres
+    environment:
+      POSTGRES_USER: your_db_user
+      POSTGRES_PASSWORD: your_db_password
+      POSTGRES_DB: your_db_name
+    restart: unless-stopped
+    networks:
+      - dev_network
+    ports:
+      - "543:5432/tcp"
+
+networks:
+  dev_network:
+    name: dev_network
+    external: true
+
+volumes:
+  postgres-dev:

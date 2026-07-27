@@ -1,0 +1,42 @@
+{
+  "log": {
+    "level": "info",
+    "timestamp": true
+  },
+  "dns": {
+    "servers": [
+      {"tag": "google", "type": "tls", "server": "8.8.8.8"}
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "vless",
+      "tag": "reality-in",
+      "listen": "::",
+      "listen_port": 50000,
+      "users": [
+        {
+          "name": "main",
+          "uuid": "your-uuid-here-1234-5678-90abcdef",
+          "flow": "xtls-rprx-vision"
+        }
+      ],
+      "tls": {
+        "enabled": true,
+        "server_name": "www.cloudflare.com",
+        "reality": {
+          "enabled": true,
+          "handshake": {
+            "server": "www.cloudflare.com",
+            "server_port": 443
+          },
+          "private_key": "your_private_key_here",
+          "short_id": ["your_short_id_here"]
+        }
+      }
+    }
+  ],
+  "outbounds": [
+    {"type": "direct", "tag": "direct-out"}
+  ]
+}

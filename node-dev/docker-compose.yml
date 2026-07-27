@@ -1,0 +1,20 @@
+services:
+    node:
+      build: .
+      image: node-dev
+      container_name: node-dev
+      volumes:
+        - ./source:/root/source
+        - ./.vscode:/root/.vscode-server
+      ports:
+        - "5555:22/tcp"
+        - "5173:5173/tcp"
+      stdin_open: true
+      tty: true
+      networks:
+       -  dev_network
+
+networks:
+    dev_network:
+      name: dev_network
+      external: true

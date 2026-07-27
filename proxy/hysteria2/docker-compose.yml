@@ -1,0 +1,13 @@
+services:
+    hysteria:
+        image: tobyxdd/hysteria
+        container_name: hysteria
+        restart: always
+        network_mode: "host"
+        cap_add:
+          - NET_ADMIN
+        volumes:
+#          - ./acme:/acme
+          - ./config.yml:/etc/hysteria.yaml:ro
+          - /root/https/certbot/etc/letsencrypt:/etc/letsencrypt:ro
+        command: ["server", "-c", "/etc/hysteria.yaml"]

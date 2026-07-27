@@ -1,0 +1,80 @@
+dns:
+  enable: true
+  ipv6: false
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  fake-ip-filter:
+    - "*.lan"
+    - "*.local"
+    - "localhost.ptlogin2.qq.com"
+    - "+.msftconnecttest.com"
+    - "+.msftncsi.com"
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://doh.pub/dns-query
+    - https://dns.alidns.com/dns-query
+  fallback:
+    - https://1.1.1.1/dns-query
+    - https://8.8.8.8/dns-query
+    - tls://1.0.0.1:853
+  fallback-filter:
+    geoip: true
+    geoip-code: CN
+    ipcidr:
+      - 240.0.0.0/4
+
+proxies:
+  - name: "Los Angeles"
+    type: hysteria2
+    server: your_server_ip
+    port: 30010
+    password: your_password
+    sni: example.com
+    ports: 30010-49990
+    hop-interval: 10
+    obfs: salamander
+    obfs-password: your_obfs_password
+
+  # 新增的 VLESS-Reality 节点
+  - name: "Reality Node"
+    type: vless
+    server: your_server_ip
+    port: 50000
+    uuid: your-uuid-here-1234-5678-90abcdef
+    network: tcp
+    udp: true
+    tls: true
+    flow: xtls-rprx-vision
+    servername: www.cloudflare.com
+    reality-opts:
+      public-key: your_public_key_here
+      short-id: your_short_id_here
+    client-fingerprint: chrome
+
+proxy-groups:
+  - name: "PROXY"
+    type: select
+    proxies:
+      - "Los Angeles"
+      - "Reality Node" # 将新节点添加到策略组
+      - DIRECT
+
+rules:
+  # 私有网段 / 局域网直连（no-resolve 避免 DNS 解析）
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR,169.254.0.0/16,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - GEOIP,LAN,DIRECT,no-resolve
+
+  # 中国大陆 IP 直连
+  - GEOIP,CN,DIRECT
+
+  # 其余流量走代理
+  - MATCH,PROXY

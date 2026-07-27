@@ -1,0 +1,22 @@
+services:
+  synctv:
+    image: 'synctvorg/synctv:latest'
+    container_name: synctv
+    restart: unless-stopped
+    volumes:
+      - ./data:/root/.synctv
+    environment:
+      - PUID=0
+      - PGID=0
+      - UMASK=022
+      - TZ=Asia/Shanghai
+      - SYNCTV_DATABASE_TYPE=postgres
+    networks:
+      - nginx_network
+    expose:
+      - "8080/tcp"
+      - "8080/udp"
+
+networks:
+  nginx_network:
+    external: true

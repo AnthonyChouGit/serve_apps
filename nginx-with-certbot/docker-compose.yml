@@ -1,0 +1,33 @@
+services:
+    nginx:
+        image: nginx:mainline
+        container_name: nginx
+        volumes:
+          - ./acme:/acme:ro
+          - ./certbot/etc/letsencrypt:/etc/letsencrypt:ro
+          - ./my_nginx.conf:/etc/nginx/conf.d/my_nginx.conf:ro
+          - ./auto_reload.sh:/docker-entrypoint.d/99-autoreload.sh:ro
+          - /public:/public:ro
+
+        ports:
+          - "80:80/tcp"
+          - "443:443/tcp"
+        networks:
+          - nginx_network
+        restart: always
+
+    certbot:
+        image: certbot/certbot
+        container_name: certbot
+        volumes:
+          - ./acme:/acme
+          - ./certbot/etc/letsencrypt:/etc/letsencrypt
+          - ./certbot/var/lib/letsencrypt:/var/lib/letsencrypt
+          - ./certbot/var/log/letsencrypt:/var/log/letsencrypt
+          - ./auto_renew.sh:/auto_renew.sh
+        entrypoint: ["/bin/sh", "-c", "/auto_renew.sh"]
+        restart: always
+
+networks:
+    nginx_network:
+        name: nginx_network

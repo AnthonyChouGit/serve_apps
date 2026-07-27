@@ -1,0 +1,25 @@
+listen: :30010-49990
+
+#acme:
+#    domains:
+#      - example.com
+#    email: your_email@example.com
+
+tls:
+    cert: /etc/letsencrypt/live/my_site/fullchain.pem
+    key: /etc/letsencrypt/live/my_site/privkey.pem
+
+auth:
+    type: password
+    password: your_password
+
+obfs:
+    type: salamander
+    salamander:
+        password: your_obfs_password
+
+#masquerade:
+#    type: proxy
+#    proxy:
+#        url: https://amazon.com
+#        rewriteHost: true
