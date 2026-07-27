@@ -18,3 +18,11 @@ This folder contains a containerized development environment for Node.js project
    docker compose up -d --build
    ```
 2. Connect to the container via SSH or use the VS Code "Remote - SSH" extension to connect to `localhost:5555`.
+
+### 🌐 External Networks
+This setup uses an external Docker network named `dev_network` to communicate with other development containers (like databases).
+- **How to create it**: If the network doesn't exist yet, you must create it manually before starting the container:
+  ```bash
+  docker network create dev_network
+  ```
+- **If you don't need it**: If this container doesn't need to talk to other containers via a shared network, you can remove or comment out the `networks` sections in `docker-compose.yml`.

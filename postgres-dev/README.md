@@ -17,3 +17,11 @@ A quick-start Docker Compose configuration for a local PostgreSQL 18 database, p
    ```bash
    docker compose up -d
    ```
+
+### 🌐 External Networks
+This setup uses an external Docker network named `dev_network` to allow other development containers (like your Node.js apps) to connect to this database securely without using the host network.
+- **How to create it**: If the network doesn't exist yet, you must create it manually before starting the container:
+  ```bash
+  docker network create dev_network
+  ```
+- **If you don't need it**: If you only plan to access the database via the exposed host port (`543`) and don't need internal Docker DNS resolution, you can remove or comment out the `networks` sections in `docker-compose.yml`.

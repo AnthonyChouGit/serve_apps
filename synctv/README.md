@@ -22,3 +22,11 @@ If you are not using Nginx (or another reverse proxy on the same Docker network)
       - "8080:8080/tcp"
 ```
 You can then access SyncTV directly via `http://your-server-ip:8080`.
+
+### 🌐 External Networks
+This setup uses an external Docker network named `nginx_network` to communicate with the reverse proxy.
+- **How to create it**: If the network doesn't exist yet, you must create it manually before starting the container:
+  ```bash
+  docker network create nginx_network
+  ```
+- **If you don't need it**: If you are not using Nginx and have mapped the ports directly as shown above, you can remove or comment out the `networks` sections in `docker-compose.yml`.
