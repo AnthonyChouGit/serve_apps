@@ -1,31 +1,31 @@
-# Sing-box VLESS Reality 部署指南
+# Sing-box VLESS Reality Deployment Guide
 
-本指南介绍如何使用 Docker 部署基于 Sing-box 的 VLESS Reality 协议。
+This guide explains how to deploy Sing-box using the VLESS Reality protocol via Docker.
 
-## 5. 生成凭证
+## 5. Generate Credentials
 
-在配置 Sing-box Reality 之前，我们需要生成一套必要的凭证信息，包括 UUID 和 Reality 的密钥对（Public Key 和 Private Key）以及 Short ID。
+Before configuring Sing-box Reality, we need to generate a set of necessary credentials, including a UUID, a Reality keypair (Public Key and Private Key), and a Short ID. Since we are deploying with Docker, we can use the Sing-box Docker image to run these commands without installing Sing-box locally.
 
-1. **生成 UUID**
-   可以使用命令行工具或在线生成器生成一个标准的 UUID：
+1. **Generate UUID**
+   Generate a standard UUID using the following Docker command:
    ```bash
-   sing-box generate uuid
+   docker run --rm ghcr.io/sagernet/sing-box generate uuid
    ```
-2. **生成 Reality 密钥对**
-   使用 Sing-box 生成公钥和私钥：
+2. **Generate Reality Keypair**
+   Generate the public and private keys:
    ```bash
-   sing-box generate reality-keypair
+   docker run --rm ghcr.io/sagernet/sing-box generate reality-keypair
    ```
-   记下输出的 `PrivateKey` 和 `PublicKey`。
-3. **生成 Short ID**
-   生成一个 8 字节（16个字符）的十六进制字符串：
+   Save the `PrivateKey` and `PublicKey` from the output.
+3. **Generate Short ID**
+   Generate an 8-byte (16-character) hexadecimal string:
    ```bash
-   sing-box generate rand --hex 8
+   docker run --rm ghcr.io/sagernet/sing-box generate rand --hex 8
    ```
 
-## 7. 编写配置文件
+## 7. Write Configuration File
 
-在 `data/config.json` 中填入你的配置。我们将使用 `www.cloudflare.com` 作为伪装域名（SNI），并配置 VLESS Reality 入站。
+Fill in your configuration in `data/config.json`. We will use `www.cloudflare.com` as the camouflage domain (SNI) and configure the VLESS Reality inbound.
 
 ```json
 {
@@ -47,7 +47,7 @@
       "users": [
         {
           "name": "main",
-          "uuid": "你的_UUID",
+          "uuid": "YOUR_UUID",
           "flow": "xtls-rprx-vision"
         }
       ],
@@ -60,8 +60,8 @@
             "server": "www.cloudflare.com",
             "server_port": 443
           },
-          "private_key": "你的_PRIVATE_KEY",
-          "short_id": ["你的_SHORT_ID"]
+          "private_key": "YOUR_PRIVATE_KEY",
+          "short_id": ["YOUR_SHORT_ID"]
         }
       }
     }
@@ -71,13 +71,13 @@
   ]
 }
 ```
-*请将 `uuid`、`private_key` 和 `short_id` 替换为你刚刚生成的值。*
+*Make sure to replace `YOUR_UUID`, `YOUR_PRIVATE_KEY`, and `YOUR_SHORT_ID` with the values you just generated.*
 
-## 8. Docker Compose 部署
+## 8. Docker Compose Deployment
 
-配置完成后，可以直接使用 Docker Compose 启动服务：
+Once the configuration is complete, you can start the service directly using Docker Compose:
 
 ```bash
 docker compose up -d
 ```
-此时 Sing-box 已经运行，可以使用支持 VLESS Reality 的客户端连接你的服务器。
+Sing-box is now running! You can connect to your server using any client that supports VLESS Reality.
