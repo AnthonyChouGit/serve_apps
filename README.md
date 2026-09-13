@@ -10,5 +10,7 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[Proxy Client Config](./proxy)**: A generic configuration setup for proxy clients.
 - **[Postgres Dev Environment](./postgres-dev)**: A quick start Docker compose setup for PostgreSQL database development.
 - **[Node Dev Environment](./node-dev)**: A development container setup for Node.js projects.
+- **[SyncTV](./synctv)**: A synchronized video playback service for watching movies and videos together with friends.
+- **[Hermes Agent](./hermes)**: An autonomous, self-improving AI agent gateway and runtime environment powered by Nous Research.
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.
