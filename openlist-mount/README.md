@@ -1,6 +1,6 @@
 # macOS Cloud Drive Mounting Guide (OpenList + rclone + FUSE-T)
 
-A complete, production-ready guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **OpenList** (the community-driven open-source continuation of AList), **rclone (`cmount`)**, and **FUSE-T**, complete with automatic startup at login.
+A complete, production-ready guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **OpenList** (the community-driven open-source continuation of AList), **rclone (`cmount`)**, and **FUSE-T**, complete with near real-time cross-device sync optimizations and automatic startup at login.
 
 ---
 
@@ -23,8 +23,8 @@ A complete, production-ready guide and toolkit for mounting cloud storage provid
 
 | File | Description |
 | :--- | :--- |
-| `mount_openlist.sh` | Automated startup & mounting shell script with race-condition protection and Finder VFS optimizations |
-| `README.md` | This comprehensive setup and auto-start tutorial |
+| `mount_dav.sh` | Automated startup & mounting shell script with race-condition protection, `.DS_Store` VFS cache cleanup, and Finder real-time sync optimizations |
+| `README.md` | This comprehensive setup, optimization, and auto-start tutorial |
 
 ### Required Binaries & Official Download Links
 
@@ -57,7 +57,7 @@ Before proceeding, download the official **OpenList** and **rclone** executables
 
 ## 2. Target File Paths & Directory Layout
 
-To match the paths configured in `mount_openlist.sh`, place the downloaded `openlist` and `rclone` binaries along with `mount_openlist.sh` in `~/openlist` (`/Users/<your-username>/openlist`). The script will automatically create and mount your cloud storage to `~/webdav` (`/Users/<your-username>/webdav`).
+To match the paths configured in `mount_dav.sh`, place the downloaded `openlist` and `rclone` binaries along with `mount_dav.sh` in `~/openlist` (`/Users/<your-username>/openlist`). The script will automatically create and mount your cloud storage to `~/webdav` (`/Users/<your-username>/webdav`).
 
 ### Expected Directory Structure
 
@@ -66,7 +66,7 @@ To match the paths configured in `mount_openlist.sh`, place the downloaded `open
 ├── openlist/                   # Working directory for OpenList and rclone
 │   ├── openlist                # OpenList executable binary
 │   ├── rclone                  # Official rclone binary (with cmount support)
-│   ├── mount_openlist.sh       # Startup and mount script
+│   ├── mount_dav.sh            # Startup and mount script
 │   ├── rclone.log              # Runtime log generated automatically by rclone
 │   └── data/                   # Database & config folder generated automatically by OpenList
 └── webdav/                     # Local mount point (appears as "OpenList" in Finder)
@@ -79,7 +79,7 @@ Open **Terminal** (`Cmd + Space`, type `Terminal`), navigate to this tutorial fo
 ```bash
 # 1. Create the target ~/openlist directory and copy the mount script
 mkdir -p ~/openlist
-cp ./mount_openlist.sh ~/openlist/
+cp ./mount_dav.sh ~/openlist/
 
 # 2. Download and extract OpenList (Apple Silicon arm64)
 curl -L https://github.com/OpenListTeam/OpenList/releases/latest/download/openlist-darwin-arm64.tar.gz | tar -xz -C ~/openlist
@@ -90,7 +90,7 @@ unzip -j /tmp/rclone.zip "*/rclone" -d ~/openlist/
 rm -f /tmp/rclone.zip
 
 # 4. Ensure all binaries and the script have executable permissions
-chmod +x ~/openlist/openlist ~/openlist/rclone ~/openlist/mount_openlist.sh
+chmod +x ~/openlist/openlist ~/openlist/rclone ~/openlist/mount_dav.sh
 
 # 5. Clear macOS Gatekeeper quarantine attributes (prevents "unidentified developer" popups)
 xattr -cr ~/openlist
@@ -112,11 +112,24 @@ xattr -cr ~/openlist
    ```
    *Terminal will output confirmation showing username `admin` and your new password.*
 
-3. Configure your cloud drives in the OpenList Web UI:
+3. Configure your user permissions and cloud drives in the OpenList Web UI:
    - Open your browser and visit: **<http://localhost:5244>**
    - Sign in with username `admin` and the password you just set.
-   - Click **Manage** at the bottom of the page -> **Storages** -> **Add** to connect your cloud storage accounts (e.g., AliyunDrive Open, Baidu Netdisk, OneDrive, Google Drive, Quark, etc.).
-   - *(Tip)* Under **Manage -> Users**, ensure the `admin` user has **WebDAV Read** and **WebDAV Manage** permissions enabled (enabled by default).
+   - **Enable Full User & WebDAV Permissions (`403 Forbidden` Prevention)**:
+     - Navigate to **Manage -> Users**, click **Edit** next to `admin`.
+     - Check **all permission boxes**, especially **Make dir or upload**, **Rename**, **Move**, **Copy**, **Remove**, **WebDAV Read**, and **WebDAV Manage** (if `WebDAV Manage` or upload permissions are unchecked, writing files via `rclone` will fail with `403 Forbidden`).
+     - Click **Save**.
+   - **Add Cloud Storage & Tune for Real-Time Sync**:
+     - Navigate to **Manage -> Storages -> Add** to connect your cloud storage accounts (e.g., AliyunDrive Open, Baidu Netdisk, OneDrive, Google Drive, Quark, etc.).
+     - **Cache Expiration**: Set to **`1`** minute (default is `30` minutes) so changes made on other devices appear within ~1 minute without triggering cloud API rate limits.
+     - **WebDAV Policy**: Set to **`native_proxy` (Local Proxy)** instead of `302 redirect` to ensure stable WebDAV file uploads.
+     - *(Note)* Changes made in the OpenList Web UI (`Users` / `Storages`) take effect immediately upon clicking **Save**—no OpenList service restart is required.
+
+> [!WARNING]
+> **Multi-Device Warning: Do NOT Share a Single Rotating `Refresh Token` Across Multiple OpenList Instances**
+> Cloud providers like AliyunDrive (`AliyunDrive Open`) use a **single-use rotating Refresh Token** mechanism: every time Machine A refreshes its `Access Token`, the provider issues a new `Refresh Token` and invalidates the old one, which immediately kicks Machine B offline with `401` / `403 Forbidden` errors.
+> - **Recommended Multi-Mac Setup**: Connect the cloud drive on a single primary machine (or NAS), and have secondary machines mount the primary machine's WebDAV directly via `rclone` (or mount the primary OpenList instance using the **AList V3 / OpenList** storage driver).
+> - **Independent Setup**: If two machines must connect independently, generate separate Refresh Tokens using **different OAuth client credentials (Client ID / Secret)** for each machine.
 
 ---
 
@@ -124,7 +137,7 @@ xattr -cr ~/openlist
 
 ### 4.1 Install `fuse-t` via Homebrew
 
-**FUSE-T** is a modern, kext-less FUSE implementation for macOS. Unlike legacy macFUSE, FUSE-T runs entirely in user space without kernel extensions, meaning you do **not** need to reboot into Recovery Mode or lower macOS System Integrity Protection (SIP).
+**FUSE-T** is a modern, kext-less FUSE implementation for macOS. Unlike legacy macFUSE, FUSE-T runs entirely in user space via a local NFSv4 server without kernel extensions, meaning you do **not** need to reboot into Recovery Mode or lower macOS System Integrity Protection (SIP).
 
 Run in Terminal:
 
@@ -167,21 +180,25 @@ If configured properly, this command will display the folders/storages you added
 
 ---
 
-## 5. Step 3: Mount Your Cloud Drive Using `mount_openlist.sh`
+## 5. Step 3: Mount Your Cloud Drive Using `mount_dav.sh`
 
-You can now run `mount_openlist.sh` to start OpenList and mount your storage to `~/webdav`:
+You can now run `mount_dav.sh` to start OpenList and mount your storage to `~/webdav`:
 
 ```bash
-~/openlist/mount_openlist.sh
+~/openlist/mount_dav.sh
 ```
 
-### What `mount_openlist.sh` Does Under the Hood
+### What `mount_dav.sh` Does Under the Hood
 
 1. **Prioritizes Official `rclone` in `PATH`**: Prepends `$HOME/openlist` and Homebrew directories (`/opt/homebrew/bin:/usr/local/bin`) to `PATH` so that even non-interactive shells (like macOS Automator) always use the `cmount`-enabled `rclone` binary and locate `fuse-t`.
-2. **Cleans Up Stale Mounts**: Checks if `~/webdav` is stuck from an unexpected reboot or disconnect and cleanly unmounts it via `umount` or `diskutil unmount force`.
-3. **Starts OpenList Safely**: Runs `./openlist start --data "$HOME/openlist/data"` from `$HOME/openlist` so the database path is never lost regardless of where the script is called from.
-4. **Prevents Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until OpenList is fully initialized before invoking `rclone mount`.
-5. **Mounts with Finder-Tuned VFS Caching**: Mounts `openlist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **OpenList** in macOS Finder.
+2. **Cleanly Unmounts & Terminates Old `rclone` Daemons**: Under FUSE-T, running `umount` alone detaches the volume but does **not** immediately stop the background `rclone --daemon` process. The script explicitly terminates any lingering `rclone mount openlist:` process (`pkill -TERM` and waits for exit) before touching the VFS cache so the old process cannot flush stale `.DS_Store` metadata back to disk on exit.
+3. **Prevents `.DS_Store: 404 Not Found` Upload Loops**:
+   - Since OpenList's root path (`/`) is a virtual directory without a backing storage driver, any attempt by macOS Finder to write `/.DS_Store` to the root mount results in a `404 Not Found` retry loop in `rclone`'s VFS cache.
+   - Furthermore, because FUSE-T mounts via NFSv4, it ignores traditional macFUSE kernel flags like `-o noappledouble`.
+   - To solve this completely, `mount_dav.sh` automatically sets `defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true` (preventing Finder from creating `.DS_Store` on network/NFS volumes) and purges any leftover `.DS_Store` and `._*` files from `~/Library/Caches/rclone/vfs/openlist` and `vfsMeta/openlist` prior to mounting.
+4. **Starts OpenList Safely**: Runs `./openlist start --data "$HOME/openlist/data"` from `$HOME/openlist` so the database path is never lost regardless of where the script is called from.
+5. **Prevents Startup Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until OpenList is fully initialized before invoking `rclone mount`.
+6. **Mounts with Real-Time Sync & Finder VFS Optimizations**: Mounts `openlist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **OpenList** in macOS Finder.
 
 ### `rclone mount` Parameters Explained
 
@@ -193,10 +210,13 @@ You can now run `mount_openlist.sh` to start OpenList and mount your storage to 
 | `--vfs-read-chunk-size` | `64M` | Starts streaming downloads in 64 MB chunks. |
 | `--vfs-read-chunk-size-limit` | `1G` | Doubles sequential read chunk size up to 1 GB for smooth 4K video playback and large file transfers. |
 | `--buffer-size` | `32M` | Allocates 32 MB of RAM buffer per open file to smooth out network jitter. |
-| `--dir-cache-time` | `12h` | Caches directory trees in memory for 12 hours so browsing folders in Finder feels instant. |
-| `--no-modtime` | *(flag)* | Skips extra API calls to read/update file modification times. |
+| `--dir-cache-time` | `15s` | Refreshes directory listings every 15 seconds for near real-time cross-device sync (WebDAV does not support server push notifications, and querying local `localhost:5244` takes `<1ms`). |
+| `--vfs-write-back` | `3s` | Uploads modified files to the cloud 3 seconds after they are closed locally (default is 5 seconds). |
+| `--no-modtime` | *(flag)* | **Required for FUSE-T**: FUSE-T's underlying macOS NFS client updates file `mtime` even when Finder merely reads or previews a file. Without `--no-modtime`, browsing files in Finder triggers false modification detections and re-uploads entire files. |
 | `--no-checksum` | *(flag)* | Disables MD5/SHA1 checksum checks to avoid incompatibilities across cloud providers. |
-| `--exclude` | `".DS_Store"`, `"._*"` | Prevents macOS Finder from uploading hidden metadata files to your cloud drives. |
+| `--noappledouble` | *(flag)* | Suppresses AppleDouble (`._*`) and `.DS_Store` handling at the `rclone` VFS layer. |
+| `--noapplexattr` | *(flag)* | Ignores macOS-specific `com.apple.*` extended attributes. |
+| `--exclude` | `".DS_Store"`, `"._*"` | Excludes macOS hidden metadata files from directory listings and transfers. |
 | `--volname` | `"OpenList"` | Sets the volume name displayed in macOS Finder sidebar and Desktop. |
 | `--vfs-cache-poll-interval` | `1m` | Checks local cache size every 1 minute to enforce the 30 GB quota. |
 | `--log-file` | `~/openlist/rclone.log` | Writes operational logs to `~/openlist/rclone.log` for easy troubleshooting. |
@@ -219,7 +239,7 @@ To have macOS automatically start OpenList and mount your cloud drives in the ba
    - **Pass input**: Select `to stdin` (default)
    - Replace the text inside the script box with:
      ```bash
-     /bin/bash "$HOME/openlist/mount_openlist.sh"
+     /bin/bash "$HOME/openlist/mount_dav.sh"
      ```
 5. Click the **Run** button (top-right corner of Automator) once to verify the script runs cleanly and mounts the `OpenList` volume in Finder.
 6. Press **`Cmd + S`** to save the application:
@@ -247,9 +267,10 @@ mount | grep webdav
 df -h ~/webdav
 ```
 
-### Manually Unmount the Drive
+### Manually Unmount and Stop `rclone`
 ```bash
 umount ~/webdav || diskutil unmount force ~/webdav
+pkill -TERM -f "rclone mount openlist:"
 ```
 
 ### Stop or Restart OpenList
@@ -257,6 +278,17 @@ umount ~/webdav || diskutil unmount force ~/webdav
 cd ~/openlist
 ./openlist stop
 ./openlist restart
+```
+
+### Clear a Stuck Upload in the Local `rclone` VFS Cache
+If a file fails to upload (e.g., `403 Forbidden` before permissions were granted) and keeps retrying in `rclone.log`:
+```bash
+# 1. Re-run mount_dav.sh (automatically stops rclone, clears .DS_Store, and remounts)
+~/openlist/mount_dav.sh
+
+# 2. Or manually delete a specific stuck file from the VFS cache while rclone is stopped:
+rm -f "$HOME/Library/Caches/rclone/vfs/openlist/<path-to-stuck-file>"
+rm -f "$HOME/Library/Caches/rclone/vfsMeta/openlist/<path-to-stuck-file>"
 ```
 
 ### View Logs for Troubleshooting
