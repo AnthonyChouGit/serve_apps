@@ -1,20 +1,20 @@
 #!/bin/bash
 # ==============================================================================
-# Script Name : mount_alist.sh
-# Description : Automatically starts AList and mounts its WebDAV storage to
+# Script Name : mount_openlist.sh
+# Description : Automatically starts OpenList and mounts its WebDAV storage to
 #               ~/webdav on macOS using the official rclone binary + FUSE-T.
 # Platform    : macOS (Apple Silicon & Intel)
 # ==============================================================================
 
 # Configuration Variables
-ALIST_DIR="$HOME/alist"
+OPENLIST_DIR="$HOME/openlist"
 MOUNT_POINT="$HOME/webdav"
-RCLONE_REMOTE="alist:"
+RCLONE_REMOTE="openlist:"
 
 # 1. Configure Environment PATH
-# Prioritize $HOME/alist so the official rclone binary (with cmount/FUSE support)
+# Prioritize $HOME/openlist so the official rclone binary (with cmount/FUSE support)
 # is used instead of Homebrew's rclone, while keeping Homebrew paths for fuse-t.
-export PATH="$ALIST_DIR:/opt/homebrew/bin:/usr/local/bin:$PATH"
+export PATH="$OPENLIST_DIR:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # 2. Check and Clean Up Stale Mounts
 # If the system previously lost power or disconnected abnormally, ~/webdav might
@@ -28,32 +28,32 @@ fi
 # 3. Ensure Local Mount Directory Exists
 mkdir -p "$MOUNT_POINT"
 
-# 4. Start AList Service
-# Explicitly specify --data "$ALIST_DIR/data" so AList always loads the right
+# 4. Start OpenList Service
+# Explicitly specify --data "$OPENLIST_DIR/data" so OpenList always loads the right
 # database regardless of the working directory from which this script is invoked.
-echo "[Info] Starting AList service..."
-(cd "$ALIST_DIR" && ./alist start --data "$ALIST_DIR/data")
+echo "[Info] Starting OpenList service..."
+(cd "$OPENLIST_DIR" && ./openlist start --data "$OPENLIST_DIR/data")
 
-# 5. Wait for AList Port (5244) to Become Ready (Prevent Race Conditions)
-# AList takes 1-2 seconds in the background to initialize its database and bind
+# 5. Wait for OpenList Port (5244) to Become Ready (Prevent Race Conditions)
+# OpenList takes 1-2 seconds in the background to initialize its database and bind
 # port 5244. Polling prevents rclone from failing immediately on startup.
-echo "[Info] Waiting for AList local service (port 5244) to be ready..."
-ALIST_READY=0
+echo "[Info] Waiting for OpenList local service (port 5244) to be ready..."
+OPENLIST_READY=0
 for i in {1..15}; do
     if curl -s -m 1 "http://localhost:5244" > /dev/null 2>&1; then
-        ALIST_READY=1
-        echo "[Info] AList service is ready!"
+        OPENLIST_READY=1
+        echo "[Info] OpenList service is ready!"
         break
     fi
     sleep 1
 done
 
-if [ $ALIST_READY -ne 1 ]; then
-    echo "[Error] AList failed to start within 15 seconds. Aborting mount!"
+if [ $OPENLIST_READY -ne 1 ]; then
+    echo "[Error] OpenList failed to start within 15 seconds. Aborting mount!"
     exit 1
 fi
 
-# 6. Mount AList WebDAV to Local Directory via rclone
+# 6. Mount OpenList WebDAV to Local Directory via rclone
 RCLONE_OPTS=(
     # [Core Cache Mode] "full" enables complete read/write caching, supporting
     # random reads/writes, overwrites, and truncation required by macOS Finder.
@@ -94,13 +94,13 @@ RCLONE_OPTS=(
     --exclude "._*"
 
     # [Finder Volume Name] Display name shown in macOS Finder sidebar and Desktop.
-    --volname "AList"
+    --volname "OpenList"
 
     # [Cache Poll Interval] Check local cache disk usage every 1 minute.
     --vfs-cache-poll-interval 1m
 
     # [Log Output] Write rclone runtime logs to file for easy debugging.
-    --log-file "$ALIST_DIR/rclone.log"
+    --log-file "$OPENLIST_DIR/rclone.log"
 
     # [Log Level] Log NOTICE and above to keep log files concise.
     --log-level NOTICE
@@ -112,4 +112,4 @@ RCLONE_OPTS=(
 echo "[Info] Mounting $RCLONE_REMOTE to $MOUNT_POINT via rclone..."
 rclone mount "$RCLONE_REMOTE" "$MOUNT_POINT" "${RCLONE_OPTS[@]}"
 
-echo "[Success] AList WebDAV mount initiated at $MOUNT_POINT!"
+echo "[Success] OpenList WebDAV mount initiated at $MOUNT_POINT!"

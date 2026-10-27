@@ -1,6 +1,6 @@
-# macOS Cloud Drive Mounting Guide (AList + rclone + FUSE-T)
+# macOS Cloud Drive Mounting Guide (OpenList + rclone + FUSE-T)
 
-A complete, production-ready guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **AList**, **rclone (`cmount`)**, and **FUSE-T**, complete with automatic startup at login.
+A complete, production-ready guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **OpenList** (the community-driven open-source continuation of AList), **rclone (`cmount`)**, and **FUSE-T**, complete with automatic startup at login.
 
 ---
 
@@ -10,29 +10,30 @@ A complete, production-ready guide and toolkit for mounting cloud storage provid
 [Cloud Storage Providers]
           │
           ▼
-    [AList Server]        (Runs locally at http://localhost:5244, exposes WebDAV at /dav)
+   [OpenList Server]       (Runs locally at http://localhost:5244, exposes WebDAV at /dav)
           │
           ▼
 [Official rclone + FUSE-T] (Mounts http://localhost:5244/dav with VFS full read/write cache)
           │
           ▼
-   [~/webdav (Finder)]    (Appears as a native "AList" volume in macOS Finder)
+   [~/webdav (Finder)]     (Appears as a native "OpenList" volume in macOS Finder)
 ```
 
 ### Included Files in This Directory
 
 | File | Description |
 | :--- | :--- |
-| `mount_alist.sh` | Automated startup & mounting shell script with race-condition protection and Finder VFS optimizations |
+| `mount_openlist.sh` | Automated startup & mounting shell script with race-condition protection and Finder VFS optimizations |
 | `README.md` | This comprehensive setup and auto-start tutorial |
 
 ### Required Binaries & Official Download Links
 
-Before proceeding, download the official **AList** and **rclone** executables for macOS:
+Before proceeding, download the official **OpenList** and **rclone** executables for macOS:
 
-1. **AList Official Releases**:
-   - GitHub Releases: <https://github.com/AlistGo/alist/releases>
-   - For Apple Silicon Macs (M1/M2/M3/M4), download `alist-darwin-arm64.tar.gz` (for Intel Macs, download `alist-darwin-amd64.tar.gz`) and extract the `alist` binary.
+1. **OpenList Official Releases**:
+   - GitHub Releases: <https://github.com/OpenListTeam/OpenList/releases>
+   - Official Documentation: <https://doc.oplist.org>
+   - For Apple Silicon Macs (M1/M2/M3/M4), download `openlist-darwin-arm64.tar.gz` (for Intel Macs, download `openlist-darwin-amd64.tar.gz`) and extract the `openlist` binary.
 2. **Official rclone with FUSE Mount Support**:
    - **All Versions Download Page**: <https://rclone.org/downloads/>
    - **Direct Download Link for Apple Silicon (M1/M2/M3/M4 ARM64)**: <https://downloads.rclone.org/rclone-current-osx-arm64.zip>
@@ -56,62 +57,62 @@ Before proceeding, download the official **AList** and **rclone** executables fo
 
 ## 2. Target File Paths & Directory Layout
 
-To match the paths configured in `mount_alist.sh`, place the downloaded `alist` and `rclone` binaries along with `mount_alist.sh` in `~/alist` (`/Users/<your-username>/alist`). The script will automatically create and mount your cloud storage to `~/webdav` (`/Users/<your-username>/webdav`).
+To match the paths configured in `mount_openlist.sh`, place the downloaded `openlist` and `rclone` binaries along with `mount_openlist.sh` in `~/openlist` (`/Users/<your-username>/openlist`). The script will automatically create and mount your cloud storage to `~/webdav` (`/Users/<your-username>/webdav`).
 
 ### Expected Directory Structure
 
 ```text
 ~/
-├── alist/                      # Working directory for AList and rclone
-│   ├── alist                   # AList executable binary
+├── openlist/                   # Working directory for OpenList and rclone
+│   ├── openlist                # OpenList executable binary
 │   ├── rclone                  # Official rclone binary (with cmount support)
-│   ├── mount_alist.sh          # Startup and mount script
+│   ├── mount_openlist.sh       # Startup and mount script
 │   ├── rclone.log              # Runtime log generated automatically by rclone
-│   └── data/                   # Database & config folder generated automatically by AList
-└── webdav/                     # Local mount point (appears as "AList" in Finder)
+│   └── data/                   # Database & config folder generated automatically by OpenList
+└── webdav/                     # Local mount point (appears as "OpenList" in Finder)
 ```
 
 ### Step-by-Step File Installation
 
-Open **Terminal** (`Cmd + Space`, type `Terminal`), navigate to this tutorial folder, and run the following commands to set up `~/alist`, download the binaries (example below for Apple Silicon `arm64`), and grant executable permissions:
+Open **Terminal** (`Cmd + Space`, type `Terminal`), navigate to this tutorial folder, and run the following commands to set up `~/openlist`, download the binaries (example below for Apple Silicon `arm64`), and grant executable permissions:
 
 ```bash
-# 1. Create the target ~/alist directory and copy the mount script
-mkdir -p ~/alist
-cp ./mount_alist.sh ~/alist/
+# 1. Create the target ~/openlist directory and copy the mount script
+mkdir -p ~/openlist
+cp ./mount_openlist.sh ~/openlist/
 
-# 2. Download and extract AList (Apple Silicon arm64)
-curl -L https://github.com/AlistGo/alist/releases/latest/download/alist-darwin-arm64.tar.gz | tar -xz -C ~/alist
+# 2. Download and extract OpenList (Apple Silicon arm64)
+curl -L https://github.com/OpenListTeam/OpenList/releases/latest/download/openlist-darwin-arm64.tar.gz | tar -xz -C ~/openlist
 
 # 3. Download and extract the official rclone binary (Apple Silicon arm64)
 curl -L -o /tmp/rclone.zip https://downloads.rclone.org/rclone-current-osx-arm64.zip
-unzip -j /tmp/rclone.zip "*/rclone" -d ~/alist/
+unzip -j /tmp/rclone.zip "*/rclone" -d ~/openlist/
 rm -f /tmp/rclone.zip
 
 # 4. Ensure all binaries and the script have executable permissions
-chmod +x ~/alist/alist ~/alist/rclone ~/alist/mount_alist.sh
+chmod +x ~/openlist/openlist ~/openlist/rclone ~/openlist/mount_openlist.sh
 
 # 5. Clear macOS Gatekeeper quarantine attributes (prevents "unidentified developer" popups)
-xattr -cr ~/alist
+xattr -cr ~/openlist
 ```
 
 ---
 
-## 3. Step 1: Start and Configure AList
+## 3. Step 1: Start and Configure OpenList
 
-1. Navigate to your `~/alist` directory and start the AList server:
+1. Navigate to your `~/openlist` directory and start the OpenList server:
    ```bash
-   cd ~/alist
-   ./alist start
+   cd ~/openlist
+   ./openlist start
    ```
 
-2. Set a custom password for the AList `admin` account (replace `YOUR_PASSWORD` with your desired password):
+2. Set a custom password for the OpenList `admin` account (replace `YOUR_PASSWORD` with your desired password):
    ```bash
-   ./alist admin set YOUR_PASSWORD
+   ./openlist admin set YOUR_PASSWORD
    ```
    *Terminal will output confirmation showing username `admin` and your new password.*
 
-3. Configure your cloud drives in the AList Web UI:
+3. Configure your cloud drives in the OpenList Web UI:
    - Open your browser and visit: **<http://localhost:5244>**
    - Sign in with username `admin` and the password you just set.
    - Click **Manage** at the bottom of the page -> **Storages** -> **Add** to connect your cloud storage accounts (e.g., AliyunDrive Open, Baidu Netdisk, OneDrive, Google Drive, Quark, etc.).
@@ -136,51 +137,51 @@ brew install fuse-t
 
 ### 4.2 Configure `rclone` (Takes Only 30 Seconds)
 
-Run the `rclone` binary located in `~/alist` to start the interactive configuration wizard:
+Run the `rclone` binary located in `~/openlist` to start the interactive configuration wizard:
 
 ```bash
-~/alist/rclone config
+~/openlist/rclone config
 ```
 
 Follow the interactive prompts step by step:
 
 1. **New remote**: Type `n` and press **Enter**.
-2. **`name>`**: Type `alist` and press **Enter**.
+2. **`name>`**: Type `openlist` and press **Enter**.
 3. **`Storage>`**: Type `webdav` (or the corresponding number for WebDAV) and press **Enter**.
 4. **`url>`**: Type `http://localhost:5244/dav` and press **Enter**.
 5. **`vendor>`**: Select the number for `other` (or type `other`) and press **Enter**.
-6. **`user>`**: Type your AList administrator username (`admin`) and press **Enter**.
-7. **`pass>`**: Type `y` (*Yes, type in my own password*), press **Enter**, then enter your AList administrator password (and enter it a second time to confirm).
+6. **`user>`**: Type your OpenList administrator username (`admin`) and press **Enter**.
+7. **`pass>`**: Type `y` (*Yes, type in my own password*), press **Enter**, then enter your OpenList administrator password (and enter it a second time to confirm).
 8. **Remaining Options (`bearer_token`, `Edit advanced config`, etc.)**: Simply press **Enter** through all remaining prompts to accept the default values.
-9. **Save & Exit**: Press **Enter** to keep the `alist` remote, then type `q` and press **Enter** to quit the wizard.
+9. **Save & Exit**: Press **Enter** to keep the `openlist` remote, then type `q` and press **Enter** to quit the wizard.
 
 #### Verify Your `rclone` Connection
 
-Test that `rclone` can list the directories from your local AList WebDAV server:
+Test that `rclone` can list the directories from your local OpenList WebDAV server:
 
 ```bash
-~/alist/rclone lsd alist:
+~/openlist/rclone lsd openlist:
 ```
 
-If configured properly, this command will display the folders/storages you added in AList.
+If configured properly, this command will display the folders/storages you added in OpenList.
 
 ---
 
-## 5. Step 3: Mount Your Cloud Drive Using `mount_alist.sh`
+## 5. Step 3: Mount Your Cloud Drive Using `mount_openlist.sh`
 
-You can now run `mount_alist.sh` to start AList and mount your storage to `~/webdav`:
+You can now run `mount_openlist.sh` to start OpenList and mount your storage to `~/webdav`:
 
 ```bash
-~/alist/mount_alist.sh
+~/openlist/mount_openlist.sh
 ```
 
-### What `mount_alist.sh` Does Under the Hood
+### What `mount_openlist.sh` Does Under the Hood
 
-1. **Prioritizes Official `rclone` in `PATH`**: Prepends `$HOME/alist` and Homebrew directories (`/opt/homebrew/bin:/usr/local/bin`) to `PATH` so that even non-interactive shells (like macOS Automator) always use the `cmount`-enabled `rclone` binary and locate `fuse-t`.
+1. **Prioritizes Official `rclone` in `PATH`**: Prepends `$HOME/openlist` and Homebrew directories (`/opt/homebrew/bin:/usr/local/bin`) to `PATH` so that even non-interactive shells (like macOS Automator) always use the `cmount`-enabled `rclone` binary and locate `fuse-t`.
 2. **Cleans Up Stale Mounts**: Checks if `~/webdav` is stuck from an unexpected reboot or disconnect and cleanly unmounts it via `umount` or `diskutil unmount force`.
-3. **Starts AList Safely**: Runs `./alist start --data "$HOME/alist/data"` from `$HOME/alist` so the database path is never lost regardless of where the script is called from.
-4. **Prevents Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until AList is fully initialized before invoking `rclone mount`.
-5. **Mounts with Finder-Tuned VFS Caching**: Mounts `alist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **AList** in macOS Finder.
+3. **Starts OpenList Safely**: Runs `./openlist start --data "$HOME/openlist/data"` from `$HOME/openlist` so the database path is never lost regardless of where the script is called from.
+4. **Prevents Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until OpenList is fully initialized before invoking `rclone mount`.
+5. **Mounts with Finder-Tuned VFS Caching**: Mounts `openlist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **OpenList** in macOS Finder.
 
 ### `rclone mount` Parameters Explained
 
@@ -196,9 +197,9 @@ You can now run `mount_alist.sh` to start AList and mount your storage to `~/web
 | `--no-modtime` | *(flag)* | Skips extra API calls to read/update file modification times. |
 | `--no-checksum` | *(flag)* | Disables MD5/SHA1 checksum checks to avoid incompatibilities across cloud providers. |
 | `--exclude` | `".DS_Store"`, `"._*"` | Prevents macOS Finder from uploading hidden metadata files to your cloud drives. |
-| `--volname` | `"AList"` | Sets the volume name displayed in macOS Finder sidebar and Desktop. |
+| `--volname` | `"OpenList"` | Sets the volume name displayed in macOS Finder sidebar and Desktop. |
 | `--vfs-cache-poll-interval` | `1m` | Checks local cache size every 1 minute to enforce the 30 GB quota. |
-| `--log-file` | `~/alist/rclone.log` | Writes operational logs to `~/alist/rclone.log` for easy troubleshooting. |
+| `--log-file` | `~/openlist/rclone.log` | Writes operational logs to `~/openlist/rclone.log` for easy troubleshooting. |
 | `--log-level` | `NOTICE` | Logs important events, warnings, and errors without bloating the log file. |
 | `--daemon` | *(flag)* | Runs the mount process silently in the background. |
 
@@ -206,7 +207,7 @@ You can now run `mount_alist.sh` to start AList and mount your storage to `~/web
 
 ## 6. Step 4: Configure Auto-Start on macOS Boot (Automator + Login Items)
 
-To have macOS automatically start AList and mount your cloud drives in the background every time you log in—without keeping a Terminal window open—combine a **macOS Automator Application** with **Login Items**.
+To have macOS automatically start OpenList and mount your cloud drives in the background every time you log in—without keeping a Terminal window open—combine a **macOS Automator Application** with **Login Items**.
 
 ### Part A: Create an Automator Application
 
@@ -218,12 +219,12 @@ To have macOS automatically start AList and mount your cloud drives in the backg
    - **Pass input**: Select `to stdin` (default)
    - Replace the text inside the script box with:
      ```bash
-     /bin/bash "$HOME/alist/mount_alist.sh"
+     /bin/bash "$HOME/openlist/mount_openlist.sh"
      ```
-5. Click the **Run** button (top-right corner of Automator) once to verify the script runs cleanly and mounts the `AList` volume in Finder.
+5. Click the **Run** button (top-right corner of Automator) once to verify the script runs cleanly and mounts the `OpenList` volume in Finder.
 6. Press **`Cmd + S`** to save the application:
-   - **Save As**: `MountAList.app`
-   - **Where**: `/Applications` (or `~/alist`)
+   - **Save As**: `MountOpenList.app`
+   - **Where**: `/Applications` (or `~/openlist`)
    - **File Format**: `Application`
 
 ### Part B: Add the App to macOS Login Items
@@ -231,9 +232,9 @@ To have macOS automatically start AList and mount your cloud drives in the backg
 1. Open **System Settings** on your Mac.
 2. Navigate to **General** -> **Login Items & Extensions** *(on older macOS versions: **System Preferences** -> **Users & Groups** -> **Login Items**)*.
 3. Under the **Open at Login** section, click the **`+`** button.
-4. Select **`MountAList.app`** from `/Applications` (or wherever you saved it) and click **Open**.
+4. Select **`MountOpenList.app`** from `/Applications` (or wherever you saved it) and click **Open**.
 
-From now on, every time you log in to your Mac, `MountAList.app` will silently start AList, wait for port `5244` to come online, and mount your cloud storage to `~/webdav` (`AList` in Finder).
+From now on, every time you log in to your Mac, `MountOpenList.app` will silently start OpenList, wait for port `5244` to come online, and mount your cloud storage to `~/webdav` (`OpenList` in Finder).
 
 ---
 
@@ -251,19 +252,19 @@ df -h ~/webdav
 umount ~/webdav || diskutil unmount force ~/webdav
 ```
 
-### Stop or Restart AList
+### Stop or Restart OpenList
 ```bash
-cd ~/alist
-./alist stop
-./alist restart
+cd ~/openlist
+./openlist stop
+./openlist restart
 ```
 
 ### View Logs for Troubleshooting
-If the drive does not appear in Finder or files fail to open, check the `rclone` and `AList` logs:
+If the drive does not appear in Finder or files fail to open, check the `rclone` and `OpenList` logs:
 ```bash
 # View rclone mount logs
-tail -n 50 -f ~/alist/rclone.log
+tail -n 50 -f ~/openlist/rclone.log
 
-# View AList server logs
-tail -n 50 -f ~/alist/data/log/alist.log
+# View OpenList server logs
+tail -n 50 -f ~/openlist/data/log/log.log
 ```
