@@ -11,7 +11,7 @@ export PATH="$HOME/openlist:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
 # 2. 检查并清理残留挂载与旧的 rclone 守护进程
 # 注意：FUSE-T 下仅执行 umount 不会立即终止后台 rclone --daemon 进程，
-# 若不先结束旧 rclone 进程，它在退出时会把内存中的 .DS_Store 重新写回 VFS 缓存目录！
+# 必须先杀掉旧 rclone 进程，否则它在退出时会把内存中的 .DS_Store 重新写回 VFS 缓存！
 if mount | grep -q "$HOME/webdav" || pgrep -f "rclone mount openlist:" >/dev/null 2>&1; then
     echo "[Info] 正在卸载旧挂载并停止残留的 rclone 后台进程..."
     umount "$HOME/webdav" 2>/dev/null || diskutil unmount force "$HOME/webdav" 2>/dev/null
@@ -23,23 +23,24 @@ if mount | grep -q "$HOME/webdav" || pgrep -f "rclone mount openlist:" >/dev/nul
     pkill -KILL -f "rclone mount openlist:" 2>/dev/null || true
 fi
 
-# 3. 禁止 macOS Finder 在网络/FUSE-T 挂载盘上生成 .DS_Store，并清理 VFS 缓存残留
-# (必须在旧 rclone 进程彻底退出后清理，否则旧进程会把 .DS_Store 重新刷回磁盘)
-defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true 2>/dev/null || true
+# 3. 彻底禁止 macOS Finder 在网络/NFS(FUSE-T) 挂载卷生成 .DS_Store
+# 若此前未开启或未重启过 Finder，则写入配置并重启一次 Finder 使其立即生效
+if [ "$(defaults read com.apple.desktopservices DSDontWriteNetworkStores 2>/dev/null)" != "1" ]; then
+    defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true
+    killall Finder 2>/dev/null || true
+fi
+
+# 4. 确保本地挂载目录存在，并在旧 rclone 彻底退出后清空 VFS 缓存中残留的 .DS_Store / ._*
 mkdir -p "$HOME/webdav"
-rm -f "$HOME/Library/Caches/rclone/vfs/openlist/.DS_Store" \
-      "$HOME/Library/Caches/rclone/vfsMeta/openlist/.DS_Store" 2>/dev/null || true
 find "$HOME/Library/Caches/rclone/vfs/openlist" "$HOME/Library/Caches/rclone/vfsMeta/openlist" \
     \( -name ".DS_Store" -o -name "._*" \) -delete 2>/dev/null || true
 
-# 4. 启动 OpenList 服务
+# 5. 启动 OpenList 服务
 # 锁定进入 ~/openlist 目录并显式指定 --data，防止在其它路径调用时生成空白数据库
 echo "[Info] 正在启动 OpenList 服务..."
 (cd "$HOME/openlist" && ./openlist start --data "$HOME/openlist/data")
 
-# 5. 等待 OpenList 端口就绪（防止时序竞态）
-# OpenList 后台启动需要 1~2 秒初始化数据库并监听 5244 端口。
-# 若 rclone 立即挂载，可能因连接不上本地端口而直接报错退出。
+# 6. 等待 OpenList 端口就绪（防止时序竞态）
 echo "[Info] 等待 OpenList 本地服务 (5244 端口) 就绪..."
 OPENLIST_READY=0
 for i in {1..15}; do
@@ -56,8 +57,7 @@ if [ $OPENLIST_READY -ne 1 ]; then
     exit 1
 fi
 
-# 6. 使用 rclone 挂载 WebDAV 到本地
-# 将挂载参数定义为数组，允许在脚本中为每个参数逐行添加详细中文注释，且避免反斜杠换行失效
+# 7. 使用 rclone 挂载 WebDAV 到本地
 RCLONE_OPTS=(
     # 【核心缓存模式】full 开启完整的读写缓存，支持随机读写、覆盖和截断，macOS Finder 正常工作必需
     --vfs-cache-mode full
@@ -77,24 +77,22 @@ RCLONE_OPTS=(
     # 【内存缓冲大小】每个打开文件的内存缓冲区（RAM）大小为 32MB，平滑网络波动
     --buffer-size 32M
 
-    # 【目录缓存时间】针对实时同步场景设为 15 秒（WebDAV 不支持变更推送，过长会导致跨设备新文件不显示）
+    # 【目录缓存时间】针对实时同步场景设为 15 秒
     --dir-cache-time 15s
 
-    # 【写回延迟】本地文件关闭后等待 3 秒即触发后台上传至网盘（默认 5 秒）
+    # 【写回延迟】本地文件关闭后等待 3 秒即触发后台上传至网盘
     --vfs-write-back 3s
 
-    # 【忽略修改时间（FUSE-T 必需）】FUSE-T 底层使用 NFS 客户端，Finder 仅读取/预览文件时也会改动 mtime，
-    # 若不加 --no-modtime，会导致 Finder 浏览文件时触发 rclone 误判文件被修改并重新上传整个文件！
+    # 【忽略修改时间（FUSE-T 必需）】FUSE-T 底层使用 NFS 客户端，Finder 仅读取文件时也会改动 mtime，
+    # 若不加 --no-modtime，会导致 Finder 浏览文件时触发 rclone 误判文件被修改并重新上传！
     --no-modtime
 
-    # 【禁用校验和】关闭文件哈希（MD5/SHA1）校验，避免因网盘不支持或分片算法差异导致卡顿与报错
+    # 【禁用校验和】关闭文件哈希（MD5/SHA1）校验
     --no-checksum
 
-    # 【过滤 macOS 隐藏文件与扩展属性】防止访达将 .DS_Store、._* 及 com.apple.* 属性上传导致报错
+    # 【阻止 AppleDouble (._*) 与扩展属性】FUSE-T 原生支持通过此参数拦截 ._* 资源分叉文件
     --noappledouble
     --noapplexattr
-    --exclude ".DS_Store"
-    --exclude "._*"
 
     # 【Finder 卷标名称】在 macOS 访达侧边栏、桌面及磁盘列表中显示的挂载名称
     --volname "OpenList"

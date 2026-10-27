@@ -192,10 +192,16 @@ You can now run `mount_dav.sh` to start OpenList and mount your storage to `~/we
 
 1. **Prioritizes Official `rclone` in `PATH`**: Prepends `$HOME/openlist` and Homebrew directories (`/opt/homebrew/bin:/usr/local/bin`) to `PATH` so that even non-interactive shells (like macOS Automator) always use the `cmount`-enabled `rclone` binary and locate `fuse-t`.
 2. **Cleanly Unmounts & Terminates Old `rclone` Daemons**: Under FUSE-T, running `umount` alone detaches the volume but does **not** immediately stop the background `rclone --daemon` process. The script explicitly terminates any lingering `rclone mount openlist:` process (`pkill -TERM` and waits for exit) before touching the VFS cache so the old process cannot flush stale `.DS_Store` metadata back to disk on exit.
-3. **Prevents `.DS_Store: 404 Not Found` Upload Loops**:
-   - Since OpenList's root path (`/`) is a virtual directory without a backing storage driver, any attempt by macOS Finder to write `/.DS_Store` to the root mount results in a `404 Not Found` retry loop in `rclone`'s VFS cache.
-   - Furthermore, because FUSE-T mounts via NFSv4, it ignores traditional macFUSE kernel flags like `-o noappledouble`.
-   - To solve this completely, `mount_dav.sh` automatically sets `defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true` (preventing Finder from creating `.DS_Store` on network/NFS volumes) and purges any leftover `.DS_Store` and `._*` files from `~/Library/Caches/rclone/vfs/openlist` and `vfsMeta/openlist` prior to mounting.
+3. **Prevents `.DS_Store` Creation & Upload Loops (FUSE-T + rclone VFS Details)**:
+   - **Why FUSE-T's `--noappledouble` isn't enough**: In FUSE-T (`go-nfsv4`), `--noappledouble` only blocks `._*` AppleDouble resource fork files—it does **not** block `.DS_Store`.
+   - **Why `--exclude ".DS_Store"` must NOT be used**: In `rclone mount`, `--exclude` only filters remote directory listings (`PROPFIND`), not local VFS write-back cache uploads (`PUT`). Worse, hiding existing `.DS_Store` files from Finder tricks Finder into thinking no `.DS_Store` exists in the folder, causing Finder to repeatedly create and `PUT` new `.DS_Store` files every time you open a directory!
+   - **How `mount_dav.sh` solves this**:
+     1. Checks and enables `defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true` (and restarts `Finder` via `killall Finder` on first run so the setting takes effect immediately), instructing Finder never to write `.DS_Store` onto network/NFS-backed FUSE-T volumes.
+     2. Purges any leftover `.DS_Store` and `._*` files from `~/Library/Caches/rclone/vfs/openlist` and `vfsMeta/openlist` *after* the old `rclone` daemon exits.
+
+> [!TIP]
+> **Best Practice When Browsing in macOS Finder:**
+> Always open your mounted cloud drive by clicking the **`OpenList`** volume icon under **"Locations"** in the Finder sidebar (or on the Desktop), rather than navigating into the local `~/webdav` folder from your home directory. Accessing via the mounted volume ensures macOS strictly applies network volume rules (`DSDontWriteNetworkStores`) and never writes `.DS_Store` at the mount root.
 4. **Starts OpenList Safely**: Runs `./openlist start --data "$HOME/openlist/data"` from `$HOME/openlist` so the database path is never lost regardless of where the script is called from.
 5. **Prevents Startup Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until OpenList is fully initialized before invoking `rclone mount`.
 6. **Mounts with Real-Time Sync & Finder VFS Optimizations**: Mounts `openlist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **OpenList** in macOS Finder.
@@ -214,9 +220,8 @@ You can now run `mount_dav.sh` to start OpenList and mount your storage to `~/we
 | `--vfs-write-back` | `3s` | Uploads modified files to the cloud 3 seconds after they are closed locally (default is 5 seconds). |
 | `--no-modtime` | *(flag)* | **Required for FUSE-T**: FUSE-T's underlying macOS NFS client updates file `mtime` even when Finder merely reads or previews a file. Without `--no-modtime`, browsing files in Finder triggers false modification detections and re-uploads entire files. |
 | `--no-checksum` | *(flag)* | Disables MD5/SHA1 checksum checks to avoid incompatibilities across cloud providers. |
-| `--noappledouble` | *(flag)* | Suppresses AppleDouble (`._*`) and `.DS_Store` handling at the `rclone` VFS layer. |
+| `--noappledouble` | *(flag)* | Supported by FUSE-T (`go-nfsv4`) to block AppleDouble (`._*`) resource fork file creation. |
 | `--noapplexattr` | *(flag)* | Ignores macOS-specific `com.apple.*` extended attributes. |
-| `--exclude` | `".DS_Store"`, `"._*"` | Excludes macOS hidden metadata files from directory listings and transfers. |
 | `--volname` | `"OpenList"` | Sets the volume name displayed in macOS Finder sidebar and Desktop. |
 | `--vfs-cache-poll-interval` | `1m` | Checks local cache size every 1 minute to enforce the 30 GB quota. |
 | `--log-file` | `~/openlist/rclone.log` | Writes operational logs to `~/openlist/rclone.log` for easy troubleshooting. |
