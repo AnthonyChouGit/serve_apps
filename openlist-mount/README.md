@@ -26,6 +26,7 @@ A setup guide and toolkit for mounting cloud storage providers (AliyunDrive, Bai
 | `mount_openlist.sh` | Starts OpenList when needed, checks WebDAV readiness, and mounts with short directory caching and limited write caching |
 | `umount_openlist.sh` | Unmounts `~/webdav` and stops its matching rclone process without automatic forced unmount or `SIGKILL` |
 | `mount_dav.sh` | Compatibility entry point that forwards to `mount_openlist.sh`; copy both files to keep existing login items working |
+| `ensure_openlist_wal.py` | Checks SQLite WAL mode, safely stops this installation for migration, preserves a backup, and verifies database integrity |
 | `README.md` | This comprehensive setup, optimization, and auto-start tutorial |
 
 ### Required Binaries & Official Download Links
@@ -71,6 +72,7 @@ Place the downloaded `openlist` and `rclone` binaries and the scripts in `~/open
 │   ├── mount_openlist.sh       # Startup and mount script
 │   ├── umount_openlist.sh      # Unmount and stop the matching rclone process
 │   ├── mount_dav.sh            # Compatibility entry point for older login items
+│   ├── ensure_openlist_wal.py  # SQLite WAL preparation, called by the mount script
 │   ├── rclone.log              # Runtime log generated automatically by rclone
 │   └── data/                   # Database & config folder generated automatically by OpenList
 └── webdav/                     # Local mount point (appears as "OpenList" in Finder)
@@ -81,9 +83,13 @@ Place the downloaded `openlist` and `rclone` binaries and the scripts in `~/open
 Open **Terminal** (`Cmd + Space`, type `Terminal`), navigate to this tutorial folder, and run the following commands to set up `~/openlist`, download the binaries (example below for Apple Silicon `arm64`), and grant executable permissions:
 
 ```bash
-# 1. Create the target ~/openlist directory and copy all three scripts
+# 1. Create the target ~/openlist directory and copy the scripts and WAL helper
 mkdir -p ~/openlist
-cp ./mount_openlist.sh ./umount_openlist.sh ./mount_dav.sh ~/openlist/
+cp ./mount_openlist.sh ./umount_openlist.sh ./mount_dav.sh ./ensure_openlist_wal.py ~/openlist/
+
+# The WAL helper requires Python 3 with the standard-library sqlite3 module.
+# Install it with `brew install python` if `python3` is unavailable.
+python3 -c 'import sqlite3'
 
 # 2. Download and extract OpenList (Apple Silicon arm64)
 curl -L https://github.com/OpenListTeam/OpenList/releases/latest/download/openlist-darwin-arm64.tar.gz | tar -xz -C ~/openlist
@@ -192,11 +198,11 @@ Run the mount script:
 ~/openlist/mount_openlist.sh
 ```
 
-Existing installations can continue calling `~/openlist/mount_dav.sh`, which forwards to `mount_openlist.sh`. Copy all three scripts when upgrading; the compatibility entry point needs the new mount script beside it.
+Existing installations can continue calling `~/openlist/mount_dav.sh`, which forwards to `mount_openlist.sh`. Copy all three shell scripts and `ensure_openlist_wal.py` when upgrading; the mount script requires the WAL helper beside it.
 
 ### Startup and Repeat Runs
 
-The script uses the `openlist` and `rclone` executables beside it and explicitly supplies the OpenList data path. Before mounting, it clears any stale `daemon/pid` file and starts OpenList if neither its local HTTP endpoint nor its matching server process is available. It then tries an authenticated WebDAV root listing up to 30 times, using a three-second connection timeout, a five-second I/O timeout, and a one-second pause after a failed attempt. This checks the WebDAV path that rclone will use, rather than treating an accessible homepage as proof that WebDAV is ready. It does not guarantee that every configured storage or subdirectory is healthy.
+The script uses the `openlist` and `rclone` executables beside it and explicitly supplies the OpenList data path. Before starting the service, it prepares SQLite WAL mode as described below. If neither its local HTTP endpoint nor its matching server process is available, it clears the stale `daemon/pid` file and starts OpenList. It then tries an authenticated WebDAV root listing up to 30 times, using a three-second connection timeout, a five-second I/O timeout, and a one-second pause after a failed attempt. This checks the WebDAV path that rclone will use, rather than treating an accessible homepage as proof that WebDAV is ready. It does not guarantee that every configured storage or subdirectory is healthy.
 
 If `~/webdav` is already mounted, the script exits after its Finder preference check. It **does not change the running mount's parameters**. After editing or upgrading the scripts, apply the new mount parameters by unmounting and mounting again:
 
@@ -205,6 +211,27 @@ If `~/webdav` is already mounted, the script exits after its Finder preference c
 ```
 
 The `&&` ensures that mounting proceeds only when unmounting succeeds. Close applications using the volume before this operation and allow local uploads to finish. OpenList itself keeps running when the mount is stopped.
+
+### Automatic SQLite WAL Preparation
+
+`mount_openlist.sh` calls `ensure_openlist_wal.py` before starting OpenList. This works around the SQLite locking failure reproduced with OpenList v4.2.9: its pure-Go SQLite driver ignores `_journal=WAL`, and a long WebDAV read transaction can block token-save commits in rollback-journal mode. A failed commit can leave a transaction on a pooled connection and produce repeated `SQLITE_BUSY` and `cannot start a transaction within a transaction` errors. WAL allows that reader and writer to proceed concurrently; this is a workaround for the reproduced failure, not a guarantee against every database-lock condition.
+
+The helper reads `data/config.json`, resolves relative `database.db_file` paths against the script directory, and honors `OPENLIST_DB_TYPE` / `OPENLIST_DB_FILE` unless `force` is enabled. Non-SQLite databases are skipped. An existing WAL database is recognized from its file header without taking a database lock, restarting OpenList, or creating another backup. A new database is initialized in WAL mode before OpenList first opens it.
+
+For an existing database that is not WAL, the volume must be unmounted. The helper sends `SIGTERM` only to OpenList server commands using the executable beside the scripts, waits up to 30 seconds for them to exit, and checks that no process still holds the database. It then copies the database and any `-journal`, `-wal`, or `-shm` companions into a private `data/wal-backup-<timestamp>-<pid>/` directory **before opening SQLite**, preserving transaction recovery files. It runs `PRAGMA quick_check`, switches to WAL, and checks integrity again. Failure stops mounting; a timed-out shutdown is not followed by a forced kill. The mount script starts the service after successful preparation.
+
+WAL mode persists across restarts, so migration happens only once per database. Already-mounted runs still exit without applying migration; use the unmount-and-mount command above after installing these scripts. If preparation fails after stopping OpenList, inspect the reported error and backup before retrying. Do not delete journal or WAL companions manually.
+
+Verify after mounting:
+
+```bash
+sqlite3 ~/openlist/data/data.db 'PRAGMA journal_mode; PRAGMA quick_check;'
+~/openlist/rclone lsf openlist: --max-depth 1 --retries 1 --low-level-retries 1 --timeout 10s
+```
+
+The database checks should return `wal` and `ok`. Use the configured database path if it differs from this default. WAL files contain OpenList database changes, not cached cloud-file contents. SQLite checkpoints them automatically; long read transactions can delay checkpoints and temporarily grow the file. Keep the database on a local filesystem and preserve its companions when backing it up while the service is running.
+
+References: [SQLite WAL documentation](https://www.sqlite.org/wal.html) and [OpenList issue #3298](https://github.com/OpenListTeam/OpenList/issues/3298).
 
 ### Finder Metadata and Mount-Point Checks
 
@@ -296,7 +323,7 @@ df -h ~/webdav
 
 The unmount script verifies that the volume at `~/webdav` is the expected FUSE-T `OpenList` mount. It performs a normal `umount` (falling back to non-forced `diskutil unmount` on macOS if raw `umount` reports the volume busy), then sends `SIGTERM` only to rclone commands matching the executable beside the script, remote `openlist:`, and mount point `~/webdav`. It waits up to about ten seconds for process exit. A busy mount or a remaining process returns an error instead of automatically forcing an unmount or sending `SIGKILL`. If nothing is mounted and no matching process exists, it exits successfully.
 
-For installations where a session-only launchd job named `codex.openlist.mount.live` was used to keep rclone alive, the script removes that job and waits for it to release the mount before continuing. A normal script invocation does not create this job or install a persistent LaunchAgent. Running the mount from a process runner that cleans up descendants can terminate the daemon when that runner exits; use Terminal or the login-item workflow above to start it normally.
+For installations where a session-only launchd job named `codex.openlist.mount.live` was used to keep rclone alive, the script removes that job and waits for it to release the mount before continuing. A normal script invocation does not create this job or install a persistent LaunchAgent. Running the mount from a process runner that cleans up descendants can terminate the daemon when that runner exits; use Terminal or the login-item workflow above to start it normally. When using a process manager such as launchd, `OPENLIST_MOUNT_FOREGROUND=1` runs the same readiness checks and WAL preparation, then replaces the script with foreground rclone using the same mount parameters. The process manager should supervise that foreground process rather than repeatedly invoking a daemonizing script.
 
 ### Stop or Restart OpenList
 
@@ -314,7 +341,7 @@ To restart the service and remount:
 
 ### Upload Failures and Nonempty Mount Points
 
-If uploads keep retrying with `403`, `404`, or `500`, inspect both logs below and fix the WebDAV permissions, storage path, network, or OpenList error first. A reachable homepage can coexist with a failing WebDAV endpoint. Database-lock or transaction errors in OpenList require service-side diagnosis; repeatedly remounting does not resolve their cause.
+If uploads keep retrying with `403`, `404`, or `500`, inspect both logs below and fix the WebDAV permissions, storage path, network, or OpenList error first. A reachable homepage can coexist with a failing WebDAV endpoint. For SQLite lock or transaction errors, confirm WAL mode and use the unmount-and-mount workflow to apply the automatic preparation above. Repeatedly remounting an already-WAL database does not fix other service-side failures.
 
 Running the mount script again on an existing mount does not flush its cache, stop uploads, or change its settings. Preserve queued writes until they upload successfully. If manually recovering a cache is unavoidable, stop rclone, save a copy of the affected file and its cache metadata, and establish that you are not discarding the only copy of local edits before making changes.
 

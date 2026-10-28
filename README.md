@@ -12,6 +12,6 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[Node Dev Environment](./node-dev)**: A development container setup for Node.js projects.
 - **[SyncTV](./synctv)**: A synchronized video playback service for watching movies and videos together with friends.
 - **[Hermes Agent](./hermes)**: An autonomous, self-improving AI agent gateway and runtime environment powered by Nous Research.
-- **[OpenList Cloud Mount](./openlist-mount)**: A macOS guide with mount and unmount scripts for accessing cloud drives in Finder using OpenList, rclone, and FUSE-T, with fast directory refresh and limited write caching.
+- **[OpenList Cloud Mount](./openlist-mount)**: A macOS guide with mount and unmount scripts for accessing cloud drives in Finder using OpenList, rclone, and FUSE-T, with short directory caching, limited write caching, and automatic SQLite WAL preparation.
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.

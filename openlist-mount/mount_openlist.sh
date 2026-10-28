@@ -24,7 +24,7 @@ fi
 
 # 已挂载时直接复用，避免中断尚未写回的 VFS 缓存。
 if mount | grep -Fq " on $mount_point ("; then
-    echo "[Info] $mount_point 已挂载，无需重复挂载。"
+    echo "[Info] $mount_point 已挂载；要应用新参数或 WAL 修复，请先运行 umount_openlist.sh 再挂载。"
     exit 0
 fi
 if pgrep -f "$rclone mount openlist: $mount_point" >/dev/null 2>&1; then
@@ -44,6 +44,13 @@ prepare_mountpoint() {
     fi
 }
 prepare_mountpoint
+
+# 已是 WAL 时不重启；旧库在停服备份后转换，新库在启动前预建为 WAL。
+if ! command -v python3 >/dev/null 2>&1 || [ ! -f "$script_dir/ensure_openlist_wal.py" ]; then
+    echo "[Error] WAL 检查需要 python3 和同目录的 ensure_openlist_wal.py。" >&2
+    exit 1
+fi
+python3 "$script_dir/ensure_openlist_wal.py"
 
 if ! curl -sS --max-time 2 -o /dev/null http://127.0.0.1:5244/ 2>/dev/null \
     && ! pgrep -f "$script_dir/openlist server" >/dev/null 2>&1; then
@@ -70,20 +77,25 @@ fi
 
 echo "[Info] 挂载 openlist: 到 $mount_point ..."
 prepare_mountpoint
-"$rclone" mount openlist: "$mount_point" \
-    --vfs-cache-mode writes \
-    --vfs-cache-max-size 1G \
-    --vfs-cache-max-age 10m \
-    --vfs-cache-poll-interval 30s \
-    --dir-cache-time 1m \
-    --poll-interval 0 \
-    --vfs-write-back 1s \
-    --no-modtime \
-    --noapplexattr \
-    --volname OpenList \
-    --log-file "$script_dir/rclone.log" \
-    --log-level NOTICE \
-    --daemon
+mount_args=(mount openlist: "$mount_point"
+    --vfs-cache-mode writes
+    --vfs-cache-max-size 1G
+    --vfs-cache-max-age 10m
+    --vfs-cache-poll-interval 30s
+    --dir-cache-time 1m
+    --poll-interval 0
+    --vfs-write-back 1s
+    --no-modtime
+    --noapplexattr
+    --volname OpenList
+    --log-file "$script_dir/rclone.log"
+    --log-level NOTICE)
+
+# launchd 等进程管理器可直接托管前台 rclone；普通调用保持后台挂载。
+if [ "${OPENLIST_MOUNT_FOREGROUND:-0}" = 1 ]; then
+    exec "$rclone" "${mount_args[@]}"
+fi
+"$rclone" "${mount_args[@]}" --daemon
 
 if ! mount | grep -Fq " on $mount_point ("; then
     echo "[Error] rclone 已退出，但 $mount_point 未挂载；请查看 $script_dir/rclone.log。" >&2
