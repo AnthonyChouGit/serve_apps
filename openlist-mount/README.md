@@ -1,6 +1,6 @@
 # macOS Cloud Drive Mounting Guide (OpenList + rclone + FUSE-T)
 
-A complete, production-ready guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **OpenList** (the community-driven open-source continuation of AList), **rclone (`cmount`)**, and **FUSE-T**, complete with near real-time cross-device sync optimizations and automatic startup at login.
+A setup guide and toolkit for mounting cloud storage providers (AliyunDrive, Baidu Netdisk, OneDrive, Google Drive, Quark, PikPak, SMB/WebDAV, and 40+ others) as a native local drive in macOS Finder using **OpenList** (the community-driven open-source continuation of AList), **rclone (`cmount`)**, and **FUSE-T**, with short directory caching, limited write caching, and optional startup at login.
 
 ---
 
@@ -13,7 +13,7 @@ A complete, production-ready guide and toolkit for mounting cloud storage provid
    [OpenList Server]       (Runs locally at http://localhost:5244, exposes WebDAV at /dav)
           │
           ▼
-[Official rclone + FUSE-T] (Mounts http://localhost:5244/dav with VFS full read/write cache)
+[Official rclone + FUSE-T] (Mounts http://localhost:5244/dav with VFS write caching)
           │
           ▼
    [~/webdav (Finder)]     (Appears as a native "OpenList" volume in macOS Finder)
@@ -23,7 +23,9 @@ A complete, production-ready guide and toolkit for mounting cloud storage provid
 
 | File | Description |
 | :--- | :--- |
-| `mount_dav.sh` | Automated startup & mounting shell script with race-condition protection, `.DS_Store` VFS cache cleanup, and Finder real-time sync optimizations |
+| `mount_openlist.sh` | Starts OpenList when needed, checks WebDAV readiness, and mounts with short directory caching and limited write caching |
+| `umount_openlist.sh` | Unmounts `~/webdav` and stops its matching rclone process without automatic forced unmount or `SIGKILL` |
+| `mount_dav.sh` | Compatibility entry point that forwards to `mount_openlist.sh`; copy both files to keep existing login items working |
 | `README.md` | This comprehensive setup, optimization, and auto-start tutorial |
 
 ### Required Binaries & Official Download Links
@@ -57,7 +59,7 @@ Before proceeding, download the official **OpenList** and **rclone** executables
 
 ## 2. Target File Paths & Directory Layout
 
-To match the paths configured in `mount_dav.sh`, place the downloaded `openlist` and `rclone` binaries along with `mount_dav.sh` in `~/openlist` (`/Users/<your-username>/openlist`). The script will automatically create and mount your cloud storage to `~/webdav` (`/Users/<your-username>/webdav`).
+Place the downloaded `openlist` and `rclone` binaries and the scripts in `~/openlist` (`/Users/<your-username>/openlist`). The scripts locate binaries, logs, and the OpenList data directory relative to their own directory, so they can be invoked from another working directory. The mount point is always `~/webdav` (`/Users/<your-username>/webdav`).
 
 ### Expected Directory Structure
 
@@ -66,7 +68,9 @@ To match the paths configured in `mount_dav.sh`, place the downloaded `openlist`
 ├── openlist/                   # Working directory for OpenList and rclone
 │   ├── openlist                # OpenList executable binary
 │   ├── rclone                  # Official rclone binary (with cmount support)
-│   ├── mount_dav.sh            # Startup and mount script
+│   ├── mount_openlist.sh       # Startup and mount script
+│   ├── umount_openlist.sh      # Unmount and stop the matching rclone process
+│   ├── mount_dav.sh            # Compatibility entry point for older login items
 │   ├── rclone.log              # Runtime log generated automatically by rclone
 │   └── data/                   # Database & config folder generated automatically by OpenList
 └── webdav/                     # Local mount point (appears as "OpenList" in Finder)
@@ -77,9 +81,9 @@ To match the paths configured in `mount_dav.sh`, place the downloaded `openlist`
 Open **Terminal** (`Cmd + Space`, type `Terminal`), navigate to this tutorial folder, and run the following commands to set up `~/openlist`, download the binaries (example below for Apple Silicon `arm64`), and grant executable permissions:
 
 ```bash
-# 1. Create the target ~/openlist directory and copy the mount script
+# 1. Create the target ~/openlist directory and copy all three scripts
 mkdir -p ~/openlist
-cp ./mount_dav.sh ~/openlist/
+cp ./mount_openlist.sh ./umount_openlist.sh ./mount_dav.sh ~/openlist/
 
 # 2. Download and extract OpenList (Apple Silicon arm64)
 curl -L https://github.com/OpenListTeam/OpenList/releases/latest/download/openlist-darwin-arm64.tar.gz | tar -xz -C ~/openlist
@@ -90,7 +94,7 @@ unzip -j /tmp/rclone.zip "*/rclone" -d ~/openlist/
 rm -f /tmp/rclone.zip
 
 # 4. Ensure all binaries and the script have executable permissions
-chmod +x ~/openlist/openlist ~/openlist/rclone ~/openlist/mount_dav.sh
+chmod +x ~/openlist/openlist ~/openlist/rclone ~/openlist/mount_openlist.sh ~/openlist/umount_openlist.sh ~/openlist/mount_dav.sh
 
 # 5. Clear macOS Gatekeeper quarantine attributes (prevents "unidentified developer" popups)
 xattr -cr ~/openlist
@@ -121,7 +125,7 @@ xattr -cr ~/openlist
      - Click **Save**.
    - **Add Cloud Storage & Tune for Real-Time Sync**:
      - Navigate to **Manage -> Storages -> Add** to connect your cloud storage accounts (e.g., AliyunDrive Open, Baidu Netdisk, OneDrive, Google Drive, Quark, etc.).
-     - **Cache Expiration**: Set to **`1`** minute (default is `30` minutes) so changes made on other devices appear within ~1 minute without triggering cloud API rate limits.
+     - **Cache Expiration**: Keep this short if other devices modify the storage. A one-minute OpenList cache can still delay visibility by about a minute even though rclone uses a five-second directory cache. To aim for seconds, use the storage driver's supported cache-disabling or shortest-expiry setting, verify its behavior for your driver, and watch for API rate limits. There is no universal cross-device refresh deadline.
      - **WebDAV Policy**: Set to **`native_proxy` (Local Proxy)** instead of `302 redirect` to ensure stable WebDAV file uploads.
      - *(Note)* Changes made in the OpenList Web UI (`Users` / `Storages`) take effect immediately upon clicking **Save**—no OpenList service restart is required.
 
@@ -180,53 +184,65 @@ If configured properly, this command will display the folders/storages you added
 
 ---
 
-## 5. Step 3: Mount Your Cloud Drive Using `mount_dav.sh`
+## 5. Step 3: Mount Your Cloud Drive
 
-You can now run `mount_dav.sh` to start OpenList and mount your storage to `~/webdav`:
+Run the mount script:
 
 ```bash
-~/openlist/mount_dav.sh
+~/openlist/mount_openlist.sh
 ```
 
-### What `mount_dav.sh` Does Under the Hood
+Existing installations can continue calling `~/openlist/mount_dav.sh`, which forwards to `mount_openlist.sh`. Copy all three scripts when upgrading; the compatibility entry point needs the new mount script beside it.
 
-1. **Prioritizes Official `rclone` in `PATH`**: Prepends `$HOME/openlist` and Homebrew directories (`/opt/homebrew/bin:/usr/local/bin`) to `PATH` so that even non-interactive shells (like macOS Automator) always use the `cmount`-enabled `rclone` binary and locate `fuse-t`.
-2. **Cleanly Unmounts & Terminates Old `rclone` Daemons**: Under FUSE-T, running `umount` alone detaches the volume but does **not** immediately stop the background `rclone --daemon` process. The script explicitly terminates any lingering `rclone mount openlist:` process (`pkill -TERM` and waits for exit) before touching the VFS cache so the old process cannot flush stale `.DS_Store` metadata back to disk on exit.
-3. **Prevents `.DS_Store` Creation & Upload Loops (FUSE-T + rclone VFS Details)**:
-   - **Why FUSE-T's `--noappledouble` isn't enough**: In FUSE-T (`go-nfsv4`), `--noappledouble` only blocks `._*` AppleDouble resource fork files—it does **not** block `.DS_Store`.
-   - **Why `--exclude ".DS_Store"` must NOT be used**: In `rclone mount`, `--exclude` only filters remote directory listings (`PROPFIND`), not local VFS write-back cache uploads (`PUT`). Worse, hiding existing `.DS_Store` files from Finder tricks Finder into thinking no `.DS_Store` exists in the folder, causing Finder to repeatedly create and `PUT` new `.DS_Store` files every time you open a directory!
-   - **How `mount_dav.sh` solves this**:
-     1. Checks and enables `defaults write com.apple.desktopservices DSDontWriteNetworkStores -bool true` (and restarts `Finder` via `killall Finder` on first run so the setting takes effect immediately), instructing Finder never to write `.DS_Store` onto network/NFS-backed FUSE-T volumes.
-     2. Purges any leftover `.DS_Store` and `._*` files from `~/Library/Caches/rclone/vfs/openlist` and `vfsMeta/openlist` *after* the old `rclone` daemon exits.
+### Startup and Repeat Runs
 
-> [!TIP]
-> **Best Practice When Browsing in macOS Finder:**
-> Always open your mounted cloud drive by clicking the **`OpenList`** volume icon under **"Locations"** in the Finder sidebar (or on the Desktop), rather than navigating into the local `~/webdav` folder from your home directory. Accessing via the mounted volume ensures macOS strictly applies network volume rules (`DSDontWriteNetworkStores`) and never writes `.DS_Store` at the mount root.
-4. **Starts OpenList Safely**: Runs `./openlist start --data "$HOME/openlist/data"` from `$HOME/openlist` so the database path is never lost regardless of where the script is called from.
-5. **Prevents Startup Race Conditions**: Polls `http://localhost:5244` every second (up to 15 seconds) until OpenList is fully initialized before invoking `rclone mount`.
-6. **Mounts with Real-Time Sync & Finder VFS Optimizations**: Mounts `openlist:` to `~/webdav` as a background daemon (`--daemon`) and displays it as **OpenList** in macOS Finder.
+The script uses the `openlist` and `rclone` executables beside it and explicitly supplies the OpenList data path. Before mounting, it starts OpenList if neither its local HTTP endpoint nor its matching server process is available. It then tries an authenticated WebDAV root listing up to 30 times, using a three-second connection timeout, a five-second I/O timeout, and a one-second pause after a failed attempt. This checks the WebDAV path that rclone will use, rather than treating an accessible homepage as proof that WebDAV is ready. It does not guarantee that every configured storage or subdirectory is healthy.
 
-### `rclone mount` Parameters Explained
+If `~/webdav` is already mounted, the script exits after its Finder preference check. It **does not change the running mount's parameters**. After editing or upgrading the scripts, apply the new mount parameters by unmounting and mounting again:
+
+```bash
+~/openlist/umount_openlist.sh && ~/openlist/mount_openlist.sh
+```
+
+The `&&` ensures that mounting proceeds only when unmounting succeeds. Close applications using the volume before this operation and allow local uploads to finish. OpenList itself keeps running when the mount is stopped.
+
+### Finder Metadata and Mount-Point Checks
+
+When `DSDontWriteNetworkStores` is not enabled, the mount script sets it to `true` and restarts a running Finder with `killall Finder`. If Finder has not started, it reads the preference on startup. This check happens even when the volume is already mounted; a preference that is already enabled does not trigger another Finder restart.
+
+This is a Finder preference for network volumes, not a general ban on `.DS_Store` files. Ordinary local folders such as `~/openlist` can still contain them, and existing files are not removed from remote storage. The scripts do not use `--exclude .DS_Store` as a write blocker and do not delete the VFS cache on each run.
+
+Before mounting, the script removes `.DS_Store` only when it is the sole entry in the **unmounted local mount-point directory**. If any other entry exists, it reports a nonempty directory and stops. It checks again immediately before calling rclone. It does not mount over local files using `--allow-non-empty`.
+
+### Refresh Behavior and Disk Use
+
+Changes from another device become available when the rclone directory cache expires and the directory is queried again. With `--dir-cache-time 5s`, an active browser can pick up changes within seconds, subject to OpenList, cloud-provider, macOS NFS, and Finder caching. Five seconds is a cache lifetime, **not a timer that pushes a Finder window update every five seconds**. This WebDAV setup has no rclone change notifications, so `--poll-interval 0` disables unsupported backend polling; it does not disable ordinary directory refreshes.
+
+Local writes are queued for upload one second after the file is closed and idle. This is when an upload can start, not when another device is guaranteed to see a completed upload. Large transfers, network failures, cloud processing, and the other device's cache add latency. Reopen an externally changed file to fetch its updated contents; an application keeping a file open can retain its own data. Avoid editing the same file simultaneously on multiple devices because this mount does not merge competing edits.
+
+`writes` mode reads files opened only for reading from the remote without creating a new disk VFS copy. Files opened for writing or for both reading and writing still use disk cache, so editing a large file can temporarily require substantial local space. Reading uses network bandwidth again on subsequent opens; if repeated reads or media seeking become slow, `full` mode is an optional performance tradeoff with higher disk use.
+
+### Current Mount Parameters
 
 | Flag | Value | Purpose |
 | :--- | :--- | :--- |
-| `--vfs-cache-mode` | `full` | Enables full read/write disk caching. Required for macOS Finder operations (random read/write, file overwrites, media scrubbing). |
-| `--vfs-cache-max-size` | `30G` | Caps local disk cache at 30 GB; automatically evicts oldest files using LRU when full. |
-| `--vfs-cache-max-age` | `24h` | Removes cached files 24 hours after their last access. |
-| `--vfs-read-chunk-size` | `64M` | Starts streaming downloads in 64 MB chunks. |
-| `--vfs-read-chunk-size-limit` | `1G` | Doubles sequential read chunk size up to 1 GB for smooth 4K video playback and large file transfers. |
-| `--buffer-size` | `32M` | Allocates 32 MB of RAM buffer per open file to smooth out network jitter. |
-| `--dir-cache-time` | `15s` | Refreshes directory listings every 15 seconds for near real-time cross-device sync (WebDAV does not support server push notifications, and querying local `localhost:5244` takes `<1ms`). |
-| `--vfs-write-back` | `3s` | Uploads modified files to the cloud 3 seconds after they are closed locally (default is 5 seconds). |
-| `--no-modtime` | *(flag)* | **Required for FUSE-T**: FUSE-T's underlying macOS NFS client updates file `mtime` even when Finder merely reads or previews a file. Without `--no-modtime`, browsing files in Finder triggers false modification detections and re-uploads entire files. |
-| `--no-checksum` | *(flag)* | Disables MD5/SHA1 checksum checks to avoid incompatibilities across cloud providers. |
-| `--noappledouble` | *(flag)* | Supported by FUSE-T (`go-nfsv4`) to block AppleDouble (`._*`) resource fork file creation. |
-| `--noapplexattr` | *(flag)* | Ignores macOS-specific `com.apple.*` extended attributes. |
-| `--volname` | `"OpenList"` | Sets the volume name displayed in macOS Finder sidebar and Desktop. |
-| `--vfs-cache-poll-interval` | `1m` | Checks local cache size every 1 minute to enforce the 30 GB quota. |
-| `--log-file` | `~/openlist/rclone.log` | Writes operational logs to `~/openlist/rclone.log` for easy troubleshooting. |
-| `--log-level` | `NOTICE` | Logs important events, warnings, and errors without bloating the log file. |
-| `--daemon` | *(flag)* | Runs the mount process silently in the background. |
+| `--vfs-cache-mode` | `writes` | Caches writes and read/write opens on disk; read-only opens stream from the remote. |
+| `--vfs-cache-max-size` | `1G` | Targets a 1 GiB cache; this is not a hard disk-space limit. Open or pending-upload files can exceed it. |
+| `--vfs-cache-max-age` | `10m` | Makes eligible idle cached files removable after ten minutes since last access. |
+| `--vfs-cache-poll-interval` | `30s` | Checks cache cleanup every 30 seconds; this does not poll remote changes. |
+| `--dir-cache-time` | `5s` | Expires rclone's directory listing cache after five seconds. |
+| `--poll-interval` | `0` | Disables backend change polling for this WebDAV remote. |
+| `--vfs-write-back` | `1s` | Starts queued uploads after files are closed and idle for one second. |
+| `--no-modtime` | *(flag)* | Disables reading/writing modification time through this mount; retained for the FUSE-T setup. |
+| `--noapplexattr` | *(flag)* | Ignores `com.apple.*` extended attributes. |
+| `--volname` | `OpenList` | Sets the Finder volume name. |
+| `--log-file` | `<script directory>/rclone.log` | Stores rclone runtime errors and notices. |
+| `--log-level` | `NOTICE` | Records notices and errors. |
+| `--daemon` | *(flag)* | Starts the mount in the background. |
+
+The scripts retain the cache so rclone can recover queued writes. Do not manually erase a cache containing unuploaded files to meet the size target.
+
+Reference: [rclone mount documentation](https://rclone.org/commands/rclone_mount/) describes directory cache expiry, write-cache modes, upload scheduling, and cache-limit exceptions.
 
 ---
 
@@ -244,7 +260,7 @@ To have macOS automatically start OpenList and mount your cloud drives in the ba
    - **Pass input**: Select `to stdin` (default)
    - Replace the text inside the script box with:
      ```bash
-     /bin/bash "$HOME/openlist/mount_dav.sh"
+     /bin/bash "$HOME/openlist/mount_openlist.sh"
      ```
 5. Click the **Run** button (top-right corner of Automator) once to verify the script runs cleanly and mounts the `OpenList` volume in Finder.
 6. Press **`Cmd + S`** to save the application:
@@ -259,7 +275,7 @@ To have macOS automatically start OpenList and mount your cloud drives in the ba
 3. Under the **Open at Login** section, click the **`+`** button.
 4. Select **`MountOpenList.app`** from `/Applications` (or wherever you saved it) and click **Open**.
 
-From now on, every time you log in to your Mac, `MountOpenList.app` will silently start OpenList, wait for port `5244` to come online, and mount your cloud storage to `~/webdav` (`OpenList` in Finder).
+From now on, every time you log in to your Mac, `MountOpenList.app` will silently start OpenList, check that the WebDAV root can be listed, and mount your cloud storage to `~/webdav` (`OpenList` in Finder).
 
 ---
 
@@ -272,29 +288,41 @@ mount | grep webdav
 df -h ~/webdav
 ```
 
-### Manually Unmount and Stop `rclone`
+### Unmount and Stop the Matching rclone Process
+
 ```bash
-umount ~/webdav || diskutil unmount force ~/webdav
-pkill -TERM -f "rclone mount openlist:"
+~/openlist/umount_openlist.sh
 ```
+
+The unmount script verifies that the volume at `~/webdav` is the expected FUSE-T `OpenList` mount. It performs a normal `umount`, then sends `SIGTERM` only to rclone commands matching the executable beside the script, remote `openlist:`, and mount point `~/webdav`. It waits up to about ten seconds for process exit. A busy mount or a remaining process returns an error instead of automatically forcing an unmount or sending `SIGKILL`. If nothing is mounted and no matching process exists, it exits successfully.
+
+For installations where a session-only launchd job named `codex.openlist.mount.live` was used to keep rclone alive, the script removes that job and waits for it to release the mount before continuing. A normal script invocation does not create this job or install a persistent LaunchAgent. Running the mount from a process runner that cleans up descendants can terminate the daemon when that runner exits; use Terminal or the login-item workflow above to start it normally.
 
 ### Stop or Restart OpenList
+
+Unmount first if you are about to stop the service:
+
 ```bash
-cd ~/openlist
-./openlist stop
-./openlist restart
+~/openlist/umount_openlist.sh && ~/openlist/openlist stop --data "$HOME/openlist/data"
 ```
 
-### Clear a Stuck Upload in the Local `rclone` VFS Cache
-If a file fails to upload (e.g., `403 Forbidden` before permissions were granted) and keeps retrying in `rclone.log`:
-```bash
-# 1. Re-run mount_dav.sh (automatically stops rclone, clears .DS_Store, and remounts)
-~/openlist/mount_dav.sh
+To restart the service and remount:
 
-# 2. Or manually delete a specific stuck file from the VFS cache while rclone is stopped:
-rm -f "$HOME/Library/Caches/rclone/vfs/openlist/<path-to-stuck-file>"
-rm -f "$HOME/Library/Caches/rclone/vfsMeta/openlist/<path-to-stuck-file>"
+```bash
+~/openlist/umount_openlist.sh && ~/openlist/openlist restart --data "$HOME/openlist/data" && ~/openlist/mount_openlist.sh
 ```
+
+### Upload Failures and Nonempty Mount Points
+
+If uploads keep retrying with `403`, `404`, or `500`, inspect both logs below and fix the WebDAV permissions, storage path, network, or OpenList error first. A reachable homepage can coexist with a failing WebDAV endpoint. Database-lock or transaction errors in OpenList require service-side diagnosis; repeatedly remounting does not resolve their cause.
+
+Running the mount script again on an existing mount does not flush its cache, stop uploads, or change its settings. Preserve queued writes until they upload successfully. If manually recovering a cache is unavoidable, stop rclone, save a copy of the affected file and its cache metadata, and establish that you are not discarding the only copy of local edits before making changes.
+
+When mounting fails because `~/webdav` is nonempty, confirm it is unmounted before inspecting its contents. The script handles a lone local `.DS_Store`; move any other local files to a separate directory before mounting instead of using `--allow-non-empty`.
+
+### Cross-Device Changes Appear Slowly
+
+Revisit the affected directory in Finder and reopen the file. If changes remain stale, check the OpenList storage's cache-expiration setting, the cloud provider's listing behavior, and whether WebDAV can list that path successfully. Reducing only rclone's cache cannot eliminate a longer server-side cache. Frequent refreshes also increase backend requests and can trigger provider rate limits.
 
 ### View Logs for Troubleshooting
 If the drive does not appear in Finder or files fail to open, check the `rclone` and `OpenList` logs:
