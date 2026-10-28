@@ -47,7 +47,8 @@ prepare_mountpoint
 
 if ! curl -sS --max-time 2 -o /dev/null http://127.0.0.1:5244/ 2>/dev/null \
     && ! pgrep -f "$script_dir/openlist server" >/dev/null 2>&1; then
-    "$script_dir/openlist" start --data "$script_dir/data"
+    rm -f "$script_dir/daemon/pid"
+    (cd "$script_dir" && "$script_dir/openlist" start --data "$script_dir/data")
 fi
 
 # 首页可访问不代表 WebDAV 可用；开机后尤其需要等待存储加载完成。
@@ -74,7 +75,7 @@ prepare_mountpoint
     --vfs-cache-max-size 1G \
     --vfs-cache-max-age 10m \
     --vfs-cache-poll-interval 30s \
-    --dir-cache-time 5s \
+    --dir-cache-time 1m \
     --poll-interval 0 \
     --vfs-write-back 1s \
     --no-modtime \

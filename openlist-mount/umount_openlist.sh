@@ -45,7 +45,7 @@ fi
 
 if mounted; then
     echo "[Info] 正在卸载 $mount_point ..."
-    if ! umount "$mount_point"; then
+    if ! umount "$mount_point" 2>/dev/null && ! diskutil unmount "$mount_point" >/dev/null 2>&1; then
         echo "[Error] 卸载失败，挂载可能仍被占用；未强制停止 rclone。" >&2
         exit 1
     fi

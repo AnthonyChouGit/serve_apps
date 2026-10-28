@@ -125,7 +125,7 @@ xattr -cr ~/openlist
      - Click **Save**.
    - **Add Cloud Storage & Tune for Real-Time Sync**:
      - Navigate to **Manage -> Storages -> Add** to connect your cloud storage accounts (e.g., AliyunDrive Open, Baidu Netdisk, OneDrive, Google Drive, Quark, etc.).
-     - **Cache Expiration**: Keep this short if other devices modify the storage. A one-minute OpenList cache can still delay visibility by about a minute even though rclone uses a five-second directory cache. To aim for seconds, use the storage driver's supported cache-disabling or shortest-expiry setting, verify its behavior for your driver, and watch for API rate limits. There is no universal cross-device refresh deadline.
+     - **Cache Expiration**: Keep this short if other devices modify the storage. Both OpenList and rclone (`--dir-cache-time 1m`) cache directory listings. To aim for faster cross-device visibility, use the storage driver's supported cache-disabling or shortest-expiry setting, verify its behavior for your driver, and watch for API rate limits. There is no universal cross-device refresh deadline.
      - **WebDAV Policy**: Set to **`native_proxy` (Local Proxy)** instead of `302 redirect` to ensure stable WebDAV file uploads.
      - *(Note)* Changes made in the OpenList Web UI (`Users` / `Storages`) take effect immediately upon clicking **Save**—no OpenList service restart is required.
 
@@ -196,7 +196,7 @@ Existing installations can continue calling `~/openlist/mount_dav.sh`, which for
 
 ### Startup and Repeat Runs
 
-The script uses the `openlist` and `rclone` executables beside it and explicitly supplies the OpenList data path. Before mounting, it starts OpenList if neither its local HTTP endpoint nor its matching server process is available. It then tries an authenticated WebDAV root listing up to 30 times, using a three-second connection timeout, a five-second I/O timeout, and a one-second pause after a failed attempt. This checks the WebDAV path that rclone will use, rather than treating an accessible homepage as proof that WebDAV is ready. It does not guarantee that every configured storage or subdirectory is healthy.
+The script uses the `openlist` and `rclone` executables beside it and explicitly supplies the OpenList data path. Before mounting, it clears any stale `daemon/pid` file and starts OpenList if neither its local HTTP endpoint nor its matching server process is available. It then tries an authenticated WebDAV root listing up to 30 times, using a three-second connection timeout, a five-second I/O timeout, and a one-second pause after a failed attempt. This checks the WebDAV path that rclone will use, rather than treating an accessible homepage as proof that WebDAV is ready. It does not guarantee that every configured storage or subdirectory is healthy.
 
 If `~/webdav` is already mounted, the script exits after its Finder preference check. It **does not change the running mount's parameters**. After editing or upgrading the scripts, apply the new mount parameters by unmounting and mounting again:
 
@@ -216,7 +216,7 @@ Before mounting, the script removes `.DS_Store` only when it is the sole entry i
 
 ### Refresh Behavior and Disk Use
 
-Changes from another device become available when the rclone directory cache expires and the directory is queried again. With `--dir-cache-time 5s`, an active browser can pick up changes within seconds, subject to OpenList, cloud-provider, macOS NFS, and Finder caching. Five seconds is a cache lifetime, **not a timer that pushes a Finder window update every five seconds**. This WebDAV setup has no rclone change notifications, so `--poll-interval 0` disables unsupported backend polling; it does not disable ordinary directory refreshes.
+Changes from another device become available when the rclone directory cache expires and the directory is queried again. With `--dir-cache-time 1m`, rclone caches directory listings for one minute (preventing recursive `PROPFIND` loops on deeply nested directories while keeping refreshes reasonably prompt), subject to OpenList, cloud-provider, macOS NFS, and Finder caching. One minute is a cache lifetime, **not a timer that pushes a Finder window update every minute**. This WebDAV setup has no rclone change notifications, so `--poll-interval 0` disables unsupported backend polling; it does not disable ordinary directory refreshes.
 
 Local writes are queued for upload one second after the file is closed and idle. This is when an upload can start, not when another device is guaranteed to see a completed upload. Large transfers, network failures, cloud processing, and the other device's cache add latency. Reopen an externally changed file to fetch its updated contents; an application keeping a file open can retain its own data. Avoid editing the same file simultaneously on multiple devices because this mount does not merge competing edits.
 
@@ -230,7 +230,7 @@ Local writes are queued for upload one second after the file is closed and idle.
 | `--vfs-cache-max-size` | `1G` | Targets a 1 GiB cache; this is not a hard disk-space limit. Open or pending-upload files can exceed it. |
 | `--vfs-cache-max-age` | `10m` | Makes eligible idle cached files removable after ten minutes since last access. |
 | `--vfs-cache-poll-interval` | `30s` | Checks cache cleanup every 30 seconds; this does not poll remote changes. |
-| `--dir-cache-time` | `5s` | Expires rclone's directory listing cache after five seconds. |
+| `--dir-cache-time` | `1m` | Expires rclone's directory listing cache after one minute. |
 | `--poll-interval` | `0` | Disables backend change polling for this WebDAV remote. |
 | `--vfs-write-back` | `1s` | Starts queued uploads after files are closed and idle for one second. |
 | `--no-modtime` | *(flag)* | Disables reading/writing modification time through this mount; retained for the FUSE-T setup. |
@@ -294,7 +294,7 @@ df -h ~/webdav
 ~/openlist/umount_openlist.sh
 ```
 
-The unmount script verifies that the volume at `~/webdav` is the expected FUSE-T `OpenList` mount. It performs a normal `umount`, then sends `SIGTERM` only to rclone commands matching the executable beside the script, remote `openlist:`, and mount point `~/webdav`. It waits up to about ten seconds for process exit. A busy mount or a remaining process returns an error instead of automatically forcing an unmount or sending `SIGKILL`. If nothing is mounted and no matching process exists, it exits successfully.
+The unmount script verifies that the volume at `~/webdav` is the expected FUSE-T `OpenList` mount. It performs a normal `umount` (falling back to non-forced `diskutil unmount` on macOS if raw `umount` reports the volume busy), then sends `SIGTERM` only to rclone commands matching the executable beside the script, remote `openlist:`, and mount point `~/webdav`. It waits up to about ten seconds for process exit. A busy mount or a remaining process returns an error instead of automatically forcing an unmount or sending `SIGKILL`. If nothing is mounted and no matching process exists, it exits successfully.
 
 For installations where a session-only launchd job named `codex.openlist.mount.live` was used to keep rclone alive, the script removes that job and waits for it to release the mount before continuing. A normal script invocation does not create this job or install a persistent LaunchAgent. Running the mount from a process runner that cleans up descendants can terminate the daemon when that runner exits; use Terminal or the login-item workflow above to start it normally.
 
