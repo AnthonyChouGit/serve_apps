@@ -78,10 +78,13 @@ fi
 echo "[Info] 挂载 openlist: 到 $mount_point ..."
 prepare_mountpoint
 mount_args=(mount openlist: "$mount_point"
-    --vfs-cache-mode writes
-    --vfs-cache-max-size 1G
+    --vfs-cache-mode full
+    --vfs-cache-max-size 2G
     --vfs-cache-max-age 10m
-    --vfs-cache-poll-interval 30s
+    --vfs-cache-poll-interval 1m
+    --vfs-read-chunk-size 8M
+    --vfs-read-chunk-size-limit 64M
+    --buffer-size 16M
     --dir-cache-time 1m
     --poll-interval 0
     --vfs-write-back 1s

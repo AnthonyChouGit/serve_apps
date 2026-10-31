@@ -247,16 +247,19 @@ Changes from another device become available when the rclone directory cache exp
 
 Local writes are queued for upload one second after the file is closed and idle. This is when an upload can start, not when another device is guaranteed to see a completed upload. Large transfers, network failures, cloud processing, and the other device's cache add latency. Reopen an externally changed file to fetch its updated contents; an application keeping a file open can retain its own data. Avoid editing the same file simultaneously on multiple devices because this mount does not merge competing edits.
 
-`writes` mode reads files opened only for reading from the remote without creating a new disk VFS copy. Files opened for writing or for both reading and writing still use disk cache, so editing a large file can temporarily require substantial local space. Reading uses network bandwidth again on subsequent opens; if repeated reads or media seeking become slow, `full` mode is an optional performance tradeoff with higher disk use.
+`full` mode caches read-only and read/write files on disk with sparse chunking. To prevent uncontrolled disk growth, the mount caps local disk cache at 2 GiB and automatically evicts idle cached files after ten minutes. Small chunking (`8M` initial chunk up to `64M`) combined with a `16M` RAM buffer ensures swift file-header retrieval without exhausting upstream cloud concurrency.
 
 ### Current Mount Parameters
 
 | Flag | Value | Purpose |
 | :--- | :--- | :--- |
-| `--vfs-cache-mode` | `writes` | Caches writes and read/write opens on disk; read-only opens stream from the remote. |
-| `--vfs-cache-max-size` | `1G` | Targets a 1 GiB cache; this is not a hard disk-space limit. Open or pending-upload files can exceed it. |
+| `--vfs-cache-mode` | `full` | Caches reads and writes on disk using sparse files; files reopen instantly from local cache. |
+| `--vfs-cache-max-size` | `2G` | Hard cap of 2 GiB for local disk cache; automatically evicts least recently used files when exceeded. |
 | `--vfs-cache-max-age` | `10m` | Makes eligible idle cached files removable after ten minutes since last access. |
-| `--vfs-cache-poll-interval` | `30s` | Checks cache cleanup every 30 seconds; this does not poll remote changes. |
+| `--vfs-cache-poll-interval` | `1m` | Polls and enforces cache quota and cleanup every minute. |
+| `--vfs-read-chunk-size` | `8M` | Starts streaming reads in 8 MiB chunks, quickly delivering headers without hogging provider connection limits. |
+| `--vfs-read-chunk-size-limit` | `64M` | Limits max read chunk expansion to 64 MiB to keep concurrent connections short-lived. |
+| `--buffer-size` | `16M` | Allocates 16 MiB in-memory buffer per open file to smooth streaming. |
 | `--dir-cache-time` | `1m` | Expires rclone's directory listing cache after one minute. |
 | `--poll-interval` | `0` | Disables backend change polling for this WebDAV remote. |
 | `--vfs-write-back` | `1s` | Starts queued uploads after files are closed and idle for one second. |
