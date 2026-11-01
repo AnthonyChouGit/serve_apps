@@ -86,8 +86,6 @@ Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the con
 - **Server Virtual IP**: `10.144.144.1`
 - **macOS Client Virtual IP**: `10.144.144.2`
 
-*(Tip: Updated community public nodes can be found at <https://uptime.easytier.cn>.)*
-
 ---
 
 ## 4. Mount on macOS via rclone & FUSE-T
