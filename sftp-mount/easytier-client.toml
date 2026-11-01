@@ -1,0 +1,35 @@
+hostname = "mac-client"
+instance_name = "your_network_name"
+instance_id = "4f8a9c12-7e3b-4d9a-8c1e-2b5f6a7d8e9f"
+dhcp = false
+ipv4 = "10.144.144.2/24"
+# 监听端口错开为 11020/11021，避免同时运行多个 EasyTier 网络实例时端口冲突
+listeners = [
+    "tcp://0.0.0.0:11020",
+    "udp://0.0.0.0:11020",
+    "wg://0.0.0.0:11021",
+]
+
+[network_identity]
+network_name = "your_network_name"
+network_secret = "your_network_secret"
+
+[[peer]]
+uri = "tcp://easytier.weiai.org.cn:11010"
+
+[[peer]]
+uri = "tcp://47.108.52.1:11012"
+
+[[peer]]
+uri = "tcp://sh.vomiku.com:7910"
+
+[[peer]]
+uri = "tcp://47.92.208.217:11010"
+
+[flags]
+enable_kcp_proxy = true
+enable_quic_proxy = true
+need_p2p = true
+private_mode = true
+relay_network_whitelist = ""
+use_smoltcp = true

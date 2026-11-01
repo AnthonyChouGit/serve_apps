@@ -1,0 +1,41 @@
+services:
+  # watchtower 自动更新 EasyTier 镜像；不需要可删除此段
+  watchtower:
+    image: nickfedor/watchtower
+    container_name: watchtower
+    restart: unless-stopped
+    environment:
+      - TZ=Asia/Shanghai
+      - WATCHTOWER_NO_STARTUP_MESSAGE
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 3600 --cleanup --label-enable
+
+  easytier:
+    # 国内树莓派拉取慢可使用 DaoCloud 镜像源：
+    # image: m.daocloud.io/docker.io/easytier/easytier:latest
+    image: easytier/easytier:latest
+    hostname: easytier-pi
+    container_name: easytier
+    labels:
+      com.centurylinklabs.watchtower.enable: 'true'
+    restart: unless-stopped
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - TZ=Asia/Shanghai
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    volumes:
+      - /etc/machine-id:/etc/machine-id:ro
+    # 去掉 -d (DHCP)，改用 -i 固定树莓派的虚拟 IP 及子网网段（10.144.144.0/24 网段，树莓派固定为 10.144.144.1）
+    command: >
+      -i 10.144.144.1/24
+      --network-name your_network_name
+      --network-secret your_network_secret
+      -p tcp://easytier.weiai.org.cn:11010
+      -p tcp://47.108.52.1:11012
+      -p tcp://sh.vomiku.com:7910
+      -p tcp://47.92.208.217:11010

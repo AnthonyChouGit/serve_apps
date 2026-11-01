@@ -12,6 +12,7 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[Node Dev Environment](./node-dev)**: A development container setup for Node.js projects.
 - **[SyncTV](./synctv)**: A synchronized video playback service for watching movies and videos together with friends.
 - **[Hermes Agent](./hermes)**: An autonomous, self-improving AI agent gateway and runtime environment powered by Nous Research.
-- **[OpenList Cloud Mount](./openlist-mount)**: A macOS guide with mount and unmount scripts for accessing cloud drives in Finder using OpenList, rclone, and FUSE-T, with short directory caching, limited write caching, and automatic SQLite WAL preparation.
+- **[OpenList Cloud Mount](./openlist-mount)**: A concise macOS guide and scripts for mounting cloud drives in Finder using OpenList, rclone, and FUSE-T.
+- **[Raspberry Pi SFTP Mount](./sftp-mount)**: End-to-end guide for formatting a USB drive on a Raspberry Pi, exposing it via an Alpine SFTP container over EasyTier P2P, and mounting it on macOS with rclone.
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.
