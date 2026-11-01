@@ -12,10 +12,10 @@ services:
     command: --interval 3600 --cleanup --label-enable
 
   easytier:
-    # 国内树莓派拉取慢可使用 DaoCloud 镜像源：
+    # 国内拉取慢可使用 DaoCloud 镜像源：
     # image: m.daocloud.io/docker.io/easytier/easytier:latest
     image: easytier/easytier:latest
-    hostname: easytier-pi
+    hostname: easytier-server
     container_name: easytier
     labels:
       com.centurylinklabs.watchtower.enable: 'true'
@@ -30,7 +30,7 @@ services:
       - /dev/net/tun:/dev/net/tun
     volumes:
       - /etc/machine-id:/etc/machine-id:ro
-    # 去掉 -d (DHCP)，改用 -i 固定树莓派的虚拟 IP 及子网网段（10.144.144.0/24 网段，树莓派固定为 10.144.144.1）
+    # 去掉 -d (DHCP)，改用 -i 固定服务端的虚拟 IP 及子网网段（10.144.144.0/24 网段，服务端固定为 10.144.144.1）
     command: >
       -i 10.144.144.1/24
       --network-name your_network_name

@@ -1,16 +1,16 @@
-# Raspberry Pi SFTP Cloud Disk (EasyTier + Docker SFTP + rclone)
+# Remote SFTP Disk Mount (EasyTier + Docker SFTP + rclone)
 
-Mount a USB drive attached to a Raspberry Pi as a local disk on macOS over a P2P virtual LAN using **EasyTier**, a lightweight **Alpine SFTP container**, and **rclone (`cmount`) + FUSE-T**.
+Mount an external or secondary drive on a Linux server as a local disk on macOS over a P2P virtual LAN using **EasyTier**, a lightweight **Alpine SFTP container**, and **rclone (`cmount`) + FUSE-T**.
 
 ```text
-[USB Drive (/mnt/mydisk)] -> [Alpine SFTP Container (:2222)] ◄══ EasyTier P2P (10.144.144.0/24) ══► [macOS rclone + FUSE-T (~/data)]
+[Server Drive (/mnt/mydisk)] -> [Alpine SFTP Container (:2222)] ◄══ EasyTier P2P (10.144.144.0/24) ══► [macOS rclone + FUSE-T (~/data)]
 ```
 
 ---
 
-## 1. Format & Mount Drive on Raspberry Pi
+## 1. Format & Mount Drive on Linux Server
 
-Plug the USB drive into a **blue USB 3.0 port** on the Raspberry Pi.
+Connect the drive to the server (use a blue **USB 3.0** port if connecting via USB).
 
 ### 1.1 Identify & Format the Drive
 
@@ -22,7 +22,7 @@ lsblk
 sudo mkfs.ext4 /dev/sda
 ```
 
-*(Optional multi-partition setup: run `sudo fdisk /dev/sda`, press `g` to create a GPT table, `n` to create Partition 1 for Linux backup (`mkfs.ext4 /dev/sda1`) and Partition 2 for cross-platform use (`mkfs.exfat /dev/sda2`), then `w` to write.)*
+*(Optional multi-partition setup: run `sudo fdisk /dev/sda`, press `g` to create a GPT table, `n` to create Partition 1 for Linux storage (`mkfs.ext4 /dev/sda1`) and Partition 2 for cross-platform use (`mkfs.exfat /dev/sda2`), then `w` to write.)*
 
 ### 1.2 Mount & Configure Auto-Mount on Boot (`/etc/fstab`)
 
@@ -54,7 +54,7 @@ df -h /mnt/mydisk
 
 ---
 
-## 2. Deploy Lightweight SFTP Container (Raspberry Pi)
+## 2. Deploy Lightweight SFTP Container (Server)
 
 This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) and `docker-compose.yml` that maps `/mnt/mydisk` to `/data` inside the container on port `2222`.
 
@@ -62,7 +62,7 @@ This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) a
    ```dockerfile
    && echo "root:your_password" | chpasswd \
    ```
-2. Build and start the container on the Raspberry Pi:
+2. Build and start the container on the server:
    ```bash
    docker compose up -d --build
    ```
@@ -71,9 +71,9 @@ This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) a
 
 ## 3. Configure EasyTier Virtual LAN
 
-### 3.1 Server Side (Raspberry Pi)
+### 3.1 Server Side
 
-Edit `docker-compose-easytier.yml` to set your `--network-name` and `--network-secret`. The Raspberry Pi is pinned to `10.144.144.1/24`:
+Edit `docker-compose-easytier.yml` to set your `--network-name` and `--network-secret`. The server is pinned to `10.144.144.1/24`:
 
 ```bash
 docker compose -f docker-compose-easytier.yml up -d
@@ -81,9 +81,9 @@ docker compose -f docker-compose-easytier.yml up -d
 
 ### 3.2 Client Side (macOS)
 
-Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the contents of `easytier-client.toml` (replacing `your_network_name` and `your_network_secret` to match the Raspberry Pi), and start the network.
+Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the contents of `easytier-client.toml` (replacing `your_network_name` and `your_network_secret` to match the server), and start the network.
 
-- **Raspberry Pi Virtual IP**: `10.144.144.1`
+- **Server Virtual IP**: `10.144.144.1`
 - **macOS Client Virtual IP**: `10.144.144.2`
 
 *(Tip: Updated community public nodes can be found at <https://uptime.easytier.cn>.)*
@@ -116,7 +116,7 @@ xattr -cr ~/Scripts
 
 ### 4.2 Create the `sftp` Remote in `rclone`
 
-Run a single command to create the `sftp` remote pointing to the Raspberry Pi container (`10.144.144.1:2222`):
+Run a single command to create the `sftp` remote pointing to the SFTP container (`10.144.144.1:2222`):
 
 ```bash
 ~/Scripts/rclone config create sftp sftp host 10.144.144.1 port 2222 user root pass your_password
