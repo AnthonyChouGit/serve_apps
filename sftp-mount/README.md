@@ -88,19 +88,19 @@ Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the con
 
 ### Option B: FRP Port Forwarding via VPS (Alternative)
 
-Use FRP to forward the server's SFTP container port `2222` to port `6000` on a public VPS using the included configuration files:
+Use FRP to forward the server's SFTP container port `2222` to port `6000` on a public VPS using the configs in `./frps` and `./frpc`:
 
 1. **VPS (`frps`)**:
-   - Files: `docker-compose-frps.yml`, `frps.toml`
-   - Set `auth.token` in `frps.toml`, open VPS firewall ports TCP `7000` and `6000`, then start:
+   - Directory: `./frps` (`docker-compose.yml`, `frps.toml`)
+   - Set `auth.token` in `frps/frps.toml`, open VPS firewall ports TCP `7000` and `6000`, then start:
      ```bash
-     docker compose -f docker-compose-frps.yml up -d
+     cd frps && docker compose up -d
      ```
 2. **SFTP Server (`frpc`)**:
-   - Files: `docker-compose-frpc.yml`, `frpc.toml`
-   - Set `serverAddr` (VPS IP) and `auth.token` in `frpc.toml`, then start:
+   - Directory: `./frpc` (`docker-compose.yml`, `frpc.toml`)
+   - Set `serverAddr` (VPS IP) and `auth.token` in `frpc/frpc.toml`, then start:
      ```bash
-     docker compose -f docker-compose-frpc.yml up -d
+     cd frpc && docker compose up -d
      ```
 3. In `rclone` (Step 4.2), point host to `<VPS_IP>` and port to `6000`.
 
