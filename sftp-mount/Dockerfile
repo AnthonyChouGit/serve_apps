@@ -10,8 +10,9 @@ RUN apk add --no-cache openssh-server openssh-sftp-server \
     && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
     # 设置 root 密码（请修改为你自己的密码）
     && echo "root:your_password" | chpasswd \
-    # 创建硬盘挂载点目录
-    && mkdir -p /data
+    # 创建硬盘挂载点目录并将 root 用户家目录（默认工作目录）设为 /data
+    && mkdir -p /data \
+    && sed -i 's|^root:.*:/root:|root:x:0:0:root:/data:|' /etc/passwd
 
 EXPOSE 22
 
