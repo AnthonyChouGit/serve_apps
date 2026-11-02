@@ -69,22 +69,30 @@ This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) a
 
 ---
 
-## 3. Configure EasyTier Virtual LAN
+## 3. Network Connection (Choose EasyTier or FRP)
 
-### 3.1 Server Side
+### Option A: Configure EasyTier Virtual LAN (Recommended, P2P Direct)
 
+#### Server Side
 Edit `docker-compose-easytier.yml` to set your `--network-name` and `--network-secret`. The server is pinned to `10.144.144.1/24`:
 
 ```bash
 docker compose -f docker-compose-easytier.yml up -d
 ```
 
-### 3.2 Client Side (macOS)
-
+#### Client Side (macOS)
 Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the contents of `easytier-client.toml` (replacing `your_network_name` and `your_network_secret` to match the server), and start the network.
 
 - **Server Virtual IP**: `10.144.144.1`
 - **macOS Client Virtual IP**: `10.144.144.2`
+
+### Option B: FRP Port Forwarding via VPS (Alternative)
+
+If you have a public VPS, use FRP to expose the server's port `2222` to the VPS port `6000` (see `../frp` for full details):
+
+1. **VPS (`frps`)**: run `frps` listening on port `7000` and exposing port `6000`.
+2. **Server (`frpc`)**: run `frpc` mapping `host.docker.internal:2222` to VPS `remotePort = 6000`.
+3. In `rclone`, point to `<VPS_IP>:6000` instead of the EasyTier IP.
 
 ---
 
@@ -114,10 +122,14 @@ xattr -cr ~/Scripts
 
 ### 4.2 Create the `sftp` Remote in `rclone`
 
-Run a single command to create the `sftp` remote pointing to the SFTP container (`10.144.144.1:2222`):
+Run a single command to create the `sftp` remote pointing to the SFTP container (use `10.144.144.1:2222` for EasyTier, or `<VPS_IP>:6000` for FRP):
 
 ```bash
+# EasyTier:
 ~/Scripts/rclone config create sftp sftp host 10.144.144.1 port 2222 user root pass your_password
+
+# Or FRP:
+# ~/Scripts/rclone config create sftp sftp host <VPS_IP> port 6000 user root pass your_password
 ```
 
 ### 4.3 Mount & Unmount

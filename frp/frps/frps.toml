@@ -1,0 +1,13 @@
+# frps 服务端配置（运行在有公网 IP 的 VPS 上）
+
+# frpc 客户端连接 frps 的端口
+bindPort = 7000
+
+# 客户端认证 token，必须与 frpc.toml 中一致
+auth.method = "token"
+auth.token = "your_frp_token"
+
+# 只允许客户端申请指定公网端口
+allowPorts = [
+  { single = 6000 }
+]
