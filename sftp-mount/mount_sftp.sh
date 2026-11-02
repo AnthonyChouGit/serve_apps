@@ -15,6 +15,10 @@ mkdir -p "$MOUNT_POINT"
     --vfs-cache-max-age 10m \
     --buffer-size 16M \
     --dir-cache-time 10s \
+    --contimeout 5s \
+    --timeout 10s \
+    --retries 5 \
+    --low-level-retries 10 \
     --no-modtime \
     --noapplexattr \
     --volname "SFTP_Disk" \
