@@ -8,6 +8,12 @@ RUN apk add --no-cache openssh-server openssh-sftp-server \
     # 允许 root 密码登录
     && sed -i 's/#PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/#PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+    # 禁用 OpenSSH 9.8+ 的来源惩罚机制（避免休眠唤醒重连触发防暴力破解封禁）
+    && echo "PerSourcePenalties no" >> /etc/ssh/sshd_config \
+    # 配置保活与死连接清理（15秒探测一次，3次无响应自动释放僵尸会话）
+    && echo "ClientAliveInterval 15" >> /etc/ssh/sshd_config \
+    && echo "ClientAliveCountMax 3" >> /etc/ssh/sshd_config \
+    && echo "TCPKeepAlive yes" >> /etc/ssh/sshd_config \
     # 设置 root 密码（请修改为你自己的密码）
     && echo "root:your_password" | chpasswd \
     # 创建硬盘挂载点目录并将 root 用户家目录（默认工作目录）设为 /data

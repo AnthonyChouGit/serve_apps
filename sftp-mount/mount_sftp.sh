@@ -11,15 +11,13 @@ mkdir -p "$MOUNT_POINT"
 # 启动 rclone 挂载
 "$RCLONE" mount "$REMOTE" "$MOUNT_POINT" \
     --vfs-cache-mode full \
-    --vfs-cache-max-size 2G \
-    --vfs-cache-max-age 10m \
+    --vfs-cache-max-size 1G \
+    --vfs-cache-max-age 5m \
+    --vfs-write-back 1s \
     --buffer-size 16M \
     --dir-cache-time 10s \
-    --contimeout 5s \
-    --timeout 10s \
-    --retries 5 \
-    --low-level-retries 10 \
-    --no-modtime \
+    --contimeout 15s \
+    --timeout 1m \
     --noapplexattr \
     --volname "SFTP_Disk" \
     --log-file "$HOME/Scripts/rclone_sftp.log" \
