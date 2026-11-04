@@ -15,5 +15,6 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[OpenList Cloud Mount](./openlist-mount)**: A concise macOS guide and scripts for mounting cloud drives in Finder using OpenList, rclone, and FUSE-T.
 - **[SFTP Remote Disk Mount](./sftp-mount)**: End-to-end guide for formatting a drive on a Linux server, exposing it via an Alpine SFTP container over EasyTier P2P, and mounting it on macOS with rclone.
 - **[FRP Reverse Proxy](./frp)**: Docker Compose setup for frps (VPS server) and frpc (client) to expose internal services with minimal exposed ports.
+- **[Fail2ban Server Protection](./fail2ban)**: Production-ready Fail2ban setup, configurations (`jail.local`), and operational cheatsheet for Ubuntu (SSH & Nginx protection).
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.

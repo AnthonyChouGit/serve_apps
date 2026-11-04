@@ -1,0 +1,61 @@
+# Fail2ban configuration for Ubuntu (20.04 / 22.04 / 24.04 LTS)
+# Destination path on server: /etc/fail2ban/jail.local
+
+[DEFAULT]
+# Whitelist trusted IPs (local and internal subnets)
+# Add your own public/VPN IP here, separated by space:
+ignoreip = 127.0.0.1/8 ::1
+
+# How long an IP stays banned (e.g. 1h, 1d, 1w)
+bantime = 1h
+
+# Time window in which failed attempts are tracked
+findtime = 10m
+
+# Number of failed attempts within 'findtime' before an IP is banned
+maxretry = 5
+
+# Ubuntu 22.04 / 24.04 LTS uses systemd journal without rsyslog by default
+backend = systemd
+
+# Firewall action: use 'ufw' if UFW is active, or 'iptables-multiport' / 'nftables-multiport'
+banaction = ufw
+banaction_allports = ufw
+
+# Progressive Ban Time: exponentially increases ban time for repeat offenders
+bantime.increment = true
+bantime.rndtime = 30m
+bantime.maxtime = 4w
+bantime.factor = 1
+
+# -------------------------------------------------------------
+# SSH Protection (sshd)
+# -------------------------------------------------------------
+[sshd]
+enabled = true
+port = ssh
+# Note: If your SSH server runs on a non-standard port (e.g. 2222),
+# change 'port = ssh' to your custom port number:
+# port = 2222
+filter = sshd
+maxretry = 5
+
+# -------------------------------------------------------------
+# Nginx Protection (Optional: enable if hosting web services)
+# -------------------------------------------------------------
+[nginx-http-auth]
+enabled = false
+port = http,https
+logpath = /var/log/nginx/error.log
+
+[nginx-botsearch]
+enabled = false
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 2
+
+[nginx-bad-request]
+enabled = false
+port = http,https
+logpath = /var/log/nginx/access.log
+maxretry = 3
