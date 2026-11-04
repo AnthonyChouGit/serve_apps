@@ -177,6 +177,17 @@ sudo fail2ban-client reload
 sudo fail2ban-regex /var/log/auth.log /etc/fail2ban/filter.d/sshd.conf
 ```
 
+### Check SSH Failed Login Attempts
+View all failed SSH password attempts recorded by systemd:
+```bash
+sudo journalctl -u ssh | grep "Failed password"
+```
+To monitor failed attempts in real time:
+```bash
+sudo journalctl -u ssh -f | grep --line-buffered "Failed password"
+```
+*(Note: On Ubuntu/Debian the unit is `ssh`, while on CentOS/RHEL/Fedora it is `sshd`)*
+
 ### View Live Logs
 ```bash
 sudo journalctl -u fail2ban -f
