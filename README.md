@@ -16,5 +16,6 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[SFTP Remote Disk Mount](./sftp-mount)**: End-to-end guide for formatting a drive on a Linux server, exposing it via an Alpine SFTP container over EasyTier P2P, and mounting it on macOS with rclone.
 - **[FRP Reverse Proxy](./frp)**: Docker Compose setup for frps (VPS server) and frpc (client) to expose internal services with minimal exposed ports.
 - **[Fail2ban Server Protection](./fail2ban)**: Production-ready Fail2ban setup, configurations (`jail.local`), and operational cheatsheet for Ubuntu (SSH & Nginx protection).
+- **[CrowdSec Server & Docker Protection](./crowdsec)**: Concise deployment guide for CrowdSec and its firewall bouncer (`ipset` + `DOCKER-USER`) with global threat intelligence blocklists.
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.
