@@ -1,9 +1,9 @@
 # frps 服务端配置（部署在公网 VPS 上）
-bindPort = 7000
+bindPort = 27391
 
 auth.method = "token"
 auth.token = "your_frp_token"
 
 allowPorts = [
-  { single = 6000 }
+  { single = 26584 }
 ]

@@ -4,8 +4,8 @@ services:
     container_name: sftp-server
     restart: unless-stopped
     ports:
-      # 将宿主机 2222 端口映射到容器 22 端口，避免与宿主机自身的 SSH (22端口) 冲突
-      - "2222:22"
+      # 将宿主机 25822 端口映射到容器 22 端口，避免与宿主机自身的 SSH (22端口) 冲突及常见扫描端口
+      - "25822:22"
     volumes:
       # 将宿主机上的硬盘挂载目录映射到容器内的 /data
       - /mnt/mydisk:/data

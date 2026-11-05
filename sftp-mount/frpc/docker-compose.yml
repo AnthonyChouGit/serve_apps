@@ -4,7 +4,7 @@ services:
     container_name: frpc
     restart: unless-stopped
     extra_hosts:
-      # 通过宿主机网桥访问 SFTP 映射在 2222 的端口
+      # 通过宿主机网桥访问 SFTP 映射在 25822 的端口
       - "host.docker.internal:host-gateway"
     volumes:
       - ./frpc.toml:/etc/frp/frpc.toml:ro
