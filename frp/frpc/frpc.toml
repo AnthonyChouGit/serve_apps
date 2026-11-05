@@ -2,16 +2,16 @@
 
 # frps 所在 VPS 的公网 IP / 域名及 bindPort
 serverAddr = "x.x.x.x"
-serverPort = 27391
+serverPort = 19473
 
 # 必须与 frps.toml 中的 auth.token 一致
 auth.method = "token"
 auth.token = "your_frp_token"
 
-# 将宿主机上服务的端口（如 SFTP 25822）映射到 VPS 公网端口
+# 将宿主机上服务的端口（如 SFTP 18422）映射到 VPS 公网端口
 [[proxies]]
 name = "sftp"
 type = "tcp"
 localIP = "host.docker.internal"
-localPort = 25822
-remotePort = 26584
+localPort = 18422
+remotePort = 18635

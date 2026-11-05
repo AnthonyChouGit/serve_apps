@@ -3,7 +3,7 @@
 Mount an external or secondary drive on a Linux server as a local disk on macOS over a P2P virtual LAN using **EasyTier**, a lightweight **Alpine SFTP container**, and **rclone (`cmount`) + FUSE-T**.
 
 ```text
-[Server Drive (/mnt/mydisk)] -> [Alpine SFTP Container (:25822)] ◄══ EasyTier P2P (10.144.144.0/24) ══► [macOS rclone + FUSE-T (~/data)]
+[Server Drive (/mnt/mydisk)] -> [Alpine SFTP Container (:18422)] ◄══ EasyTier P2P (10.144.144.0/24) ══► [macOS rclone + FUSE-T (~/data)]
 ```
 
 ---
@@ -56,7 +56,7 @@ df -h /mnt/mydisk
 
 ## 2. Deploy Lightweight SFTP Container (Server)
 
-This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) and `docker-compose.yml` that maps `/mnt/mydisk` to `/data` inside the container on port `25822`.
+This directory includes an Alpine-based `Dockerfile` (~15 MB total image size) and `docker-compose.yml` that maps `/mnt/mydisk` to `/data` inside the container on port `18422`.
 
 1. Edit `Dockerfile` and replace `your_password` with your desired root password:
    ```dockerfile
@@ -88,11 +88,11 @@ Open **EasyTier GUI** on macOS, switch to TOML configuration mode, paste the con
 
 ### Option B: FRP Port Forwarding via VPS (Alternative)
 
-Use FRP to forward the server's SFTP container port `25822` to port `26584` on a public VPS using the configs in `./frps` and `./frpc`:
+Use FRP to forward the server's SFTP container port `18422` to port `18635` on a public VPS using the configs in `./frps` and `./frpc`:
 
 1. **VPS (`frps`)**:
    - Directory: `./frps` (`docker-compose.yml`, `frps.toml`)
-   - Set `auth.token` in `frps/frps.toml`, open VPS firewall ports TCP `27391` and `26584`, then start:
+   - Set `auth.token` in `frps/frps.toml`, open VPS firewall ports TCP `19473` and `18635`, then start:
      ```bash
      cd frps && docker compose up -d
      ```
@@ -102,7 +102,7 @@ Use FRP to forward the server's SFTP container port `25822` to port `26584` on a
      ```bash
      cd frpc && docker compose up -d
      ```
-3. In `rclone` (Step 4.2), point host to `<VPS_IP>` and port to `26584`.
+3. In `rclone` (Step 4.2), point host to `<VPS_IP>` and port to `18635`.
 
 ---
 
@@ -132,14 +132,14 @@ xattr -cr ~/Scripts
 
 ### 4.2 Create the `sftp` Remote in `rclone`
 
-Run a single command to create the `sftp` remote pointing to the SFTP container (use `10.144.144.1:25822` for EasyTier, or `<VPS_IP>:26584` for FRP):
+Run a single command to create the `sftp` remote pointing to the SFTP container (use `10.144.144.1:18422` for EasyTier, or `<VPS_IP>:18635` for FRP):
 
 ```bash
 # EasyTier:
-~/Scripts/rclone config create sftp sftp host 10.144.144.1 port 25822 user root pass your_password
+~/Scripts/rclone config create sftp sftp host 10.144.144.1 port 18422 user root pass your_password
 
 # Or FRP:
-# ~/Scripts/rclone config create sftp sftp host <VPS_IP> port 26584 user root pass your_password
+# ~/Scripts/rclone config create sftp sftp host <VPS_IP> port 18635 user root pass your_password
 ```
 
 ### 4.3 Mount & Unmount

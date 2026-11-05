@@ -1,14 +1,14 @@
 # frpc 客户端配置（部署在内网 SFTP 服务器上）
 serverAddr = "x.x.x.x"  # 替换为 VPS 的公网 IP 或域名
-serverPort = 27391
+serverPort = 19473
 
 auth.method = "token"
 auth.token = "your_frp_token"
 
-# 将 SFTP 容器映射在宿主机的 25822 端口转发至 VPS 的 26584 端口
+# 将 SFTP 容器映射在宿主机的 18422 端口转发至 VPS 的 18635 端口
 [[proxies]]
 name = "sftp"
 type = "tcp"
 localIP = "host.docker.internal"
-localPort = 25822
-remotePort = 26584
+localPort = 18422
+remotePort = 18635
