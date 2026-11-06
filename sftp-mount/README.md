@@ -92,7 +92,7 @@ Use FRP to forward the server's SFTP container port `18422` to port `18635` on a
 
 1. **VPS (`frps`)**:
    - Directory: `./frps` (`docker-compose.yml`, `frps.toml`)
-   - Set `auth.token` in `frps/frps.toml`, open VPS firewall / security group ports TCP/UDP `19473` (frp control & QUIC) and TCP `18635` (SFTP), then start:
+   - Set `auth.token` in `frps/frps.toml`, open VPS firewall ports TCP `19473` and `18635`, then start:
      ```bash
      cd frps && docker compose up -d
      ```

@@ -4,9 +4,6 @@
 serverAddr = "x.x.x.x"
 serverPort = 19473
 
-# 使用 QUIC 协议连接 frps（基于 UDP，抗网络抖动与丢包；需 VPS 安全组放行 UDP 19473）
-transport.protocol = "quic"
-
 # 必须与 frps.toml 中的 auth.token 一致
 auth.method = "token"
 auth.token = "your_frp_token"

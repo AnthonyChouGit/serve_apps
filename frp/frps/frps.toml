@@ -3,9 +3,6 @@
 # frpc 客户端连接 frps 的端口
 bindPort = 19473
 
-# 开启 QUIC 协议支持（使用 UDP 端口，实现低延迟、抗丢包传输）
-quicBindPort = 19473
-
 # 客户端认证 token，必须与 frpc.toml 中一致
 auth.method = "token"
 auth.token = "your_frp_token"
