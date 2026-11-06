@@ -4,7 +4,8 @@ services:
     container_name: frps
     restart: unless-stopped
     ports:
-      - "19473:19473"  # frp 控制面端口
-      - "18635:18635"  # 映射出的 SFTP 端口
+      - "19473:19473/tcp"  # frp 控制面端口 (TCP)
+      - "19473:19473/udp"  # frp QUIC 传输端口 (UDP)
+      - "18635:18635"      # 映射出的 SFTP 端口
     volumes:
       - ./frps.toml:/etc/frp/frps.toml:ro

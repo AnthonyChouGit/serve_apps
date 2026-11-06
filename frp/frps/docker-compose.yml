@@ -4,8 +4,9 @@ services:
     container_name: frps
     restart: unless-stopped
     ports:
-      # frpc 客户端连接端口（对应 frps.toml 中的 bindPort）
-      - "19473:19473"
+      # frpc 客户端连接端口（TCP 与 QUIC UDP 对应 frps.toml 中的 bindPort / quicBindPort）
+      - "19473:19473/tcp"
+      - "19473:19473/udp"
       # 映射出去的 SFTP 公网端口（对应 frpc.toml 中的 remotePort）
       - "18635:18635"
     volumes:

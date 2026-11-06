@@ -1,6 +1,9 @@
 # frps 服务端配置（部署在公网 VPS 上）
 bindPort = 19473
 
+# 开启 QUIC 协议支持（使用 UDP 端口，实现低延迟、抗丢包传输）
+quicBindPort = 19473
+
 auth.method = "token"
 auth.token = "your_frp_token"
 

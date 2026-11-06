@@ -2,6 +2,9 @@
 serverAddr = "x.x.x.x"  # 替换为 VPS 的公网 IP 或域名
 serverPort = 19473
 
+# 使用 QUIC 协议连接 frps（基于 UDP，抗网络抖动与丢包；需 VPS 安全组放行 UDP 19473）
+transport.protocol = "quic"
+
 auth.method = "token"
 auth.token = "your_frp_token"
 

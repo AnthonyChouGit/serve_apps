@@ -14,7 +14,7 @@ Deploy **FRP** (`snowdreamtech/frps` and `snowdreamtech/frpc`) to expose interna
 2. Configure `frps.toml`:
    - Change `auth.token` to a secure random token.
    - Adjust `allowPorts` to limit which remote ports clients can bind (e.g. `18635`).
-3. Ensure VPS firewall / security group opens TCP `19473` (frp control) and `18635` (service port).
+3. Ensure VPS firewall / security group opens TCP/UDP `19473` (frp control & QUIC) and TCP `18635` (service port).
 4. Start the server:
    ```bash
    docker compose up -d
