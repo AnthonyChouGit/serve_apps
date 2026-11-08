@@ -25,5 +25,5 @@ RUN apk add --no-cache openssh-server openssh-sftp-server \
 
 EXPOSE 22
 
-# -D 前台运行容器不退出，-e 将日志直接输出到标准错误方便 docker logs 查看
-CMD ["/usr/sbin/sshd", "-D", "-e"]
+# -D 前台运行容器不退出（不加 -e，避免大量日志写入 stderr 匿名管道塞满 64KB 缓冲区导致 sshd 主进程阻塞在 anon_pipe_write）
+CMD ["/usr/sbin/sshd", "-D"]

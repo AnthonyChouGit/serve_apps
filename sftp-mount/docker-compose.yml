@@ -2,6 +2,7 @@ services:
   sftp:
     build: .
     container_name: sftp-server
+    init: true
     restart: unless-stopped
     ports:
       # 将宿主机 18422 端口映射到容器 22 端口，避免与宿主机自身的 SSH (22端口) 冲突及常见扫描端口
