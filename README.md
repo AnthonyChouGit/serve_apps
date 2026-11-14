@@ -9,7 +9,7 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[Sing-box Reality](./proxy/singbox-reality)**: A proxy setup focusing on stealth and stability using Sing-box's VLESS Reality implementation.
 - **[Proxy Client Config](./proxy)**: A generic configuration setup for proxy clients.
 - **[Postgres Dev Environment](./postgres-dev)**: A quick start Docker compose setup for PostgreSQL database development.
-- **[Node Dev Environment](./node-dev)**: A development container setup for Node.js projects.
+- **[Node & TypeScript Dev Environment](./node-dev)**: A containerized Node.js development environment and production TypeScript (`npm` + `tsc` + Docker `build/` bundle) project guide.
 - **[SyncTV](./synctv)**: A synchronized video playback service for watching movies and videos together with friends.
 - **[Hermes Agent](./hermes)**: An autonomous, self-improving AI agent gateway and runtime environment powered by Nous Research.
 - **[OpenList Cloud Mount](./openlist-mount)**: A concise macOS guide and scripts for mounting cloud drives in Finder using OpenList, rclone, and FUSE-T.
