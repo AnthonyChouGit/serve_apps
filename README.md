@@ -17,5 +17,6 @@ Welcome to the comprehensive setup guide for deploying modern web and proxy serv
 - **[FRP Reverse Proxy](./frp)**: Docker Compose setup for frps (VPS server) and frpc (client) to expose internal services with minimal exposed ports.
 - **[Fail2ban Server Protection](./fail2ban)**: Production-ready Fail2ban setup, configurations (`jail.local`), and operational cheatsheet for Ubuntu (SSH & Nginx protection).
 - **[CrowdSec Server & Docker Protection](./crowdsec)**: Concise deployment guide for CrowdSec and its firewall bouncer (`ipset` + `DOCKER-USER`) with global threat intelligence blocklists.
+- **[Linux User & Group Management](./user-management)**: Concise guide for creating `sudo` users with SSH password authentication and configuring group-isolated shared directories (`2770` SGID + default ACLs).
 
 Each folder contains its own `README.md` with detailed instructions on configuration and deployment. Choose the project you wish to deploy and follow its specific guide.
